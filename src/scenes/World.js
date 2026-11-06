@@ -7,6 +7,7 @@ import { GIFT_KINDS } from '../data/balance.js';
 import { RESTORE_BY_ID, nextRestorable, CHORES, suggestRecipe, ITEMS } from '../data/valley-rules.js';
 import { registerFrames, buildFarm, refreshFarmVisuals, SPOTS, ITEM_ICON } from '../world/farm.js';
 import { Actor, Autopilot } from '../world/autopilot.js';
+import { buildTown, updateTown, Dog } from '../world/town.js';
 import { sfx, unlockAudio, ambience, music } from '../audio.js';
 import { Music } from '../music.js';
 import { loadView, act } from '../net.js';
@@ -76,6 +77,7 @@ export class World extends Phaser.Scene {
     const nature = this.textures.get('nature');
     for (const [name, [x, y, w, h]] of Object.entries(NATURE)) nature.add(name, 0, x, y, w, h);
     registerFrames(this);
+    this.createAnims();
 
     this.buildData();
     this.buildGround();
@@ -85,12 +87,14 @@ export class World extends Phaser.Scene {
     this.buildRestorables();
     this.buildAnimals();
     buildFarm(this);
+    buildTown(this);
     this.buildPlayer();
     this.buildVillager();
     this.buildLighting();
     this.buildParticles();
     this.rebuildWalkGrid();
     this.buildAutopilot();
+    this.buildDog();
     this.refreshFarm();
     this.applyEastFade(this.restored('bridge') ? 0 : 1);
     this.renderGifts();
@@ -333,6 +337,10 @@ export class World extends Phaser.Scene {
       [35, 16, 43, 23], // pasture
       [34, 8, 42, 14], // orchard
       [9, 10, 13, 14], // notice board
+      [22, 9, 25, 11], // dog house
+      [3, 27, 28, 47], // town: shops, plaza, stalls
+      [3, 46, 29, 57], // track, gym, dog park
+      [14, 14, 17, 34], // main street
     ];
     const free = (tx, ty) => !this.water[ty]?.[tx] && !this.path[ty]?.[tx] && !reserved.some(([x0, y0, x1, y1]) => tx >= x0 && tx <= x1 && ty >= y0 && ty <= y1);
 
@@ -350,7 +358,8 @@ export class World extends Phaser.Scene {
     // Interior groves
     const groves = [[27.6, 9.6, 'treeSmall'], [5, 13, 'treeBig'], [7.2, 12.6, 'treeSmall'],
       [18, 26, 'treeBig'], [25, 26.5, 'treeApple'], [27.5, 24.5, 'treeSmall'],
-      [38.5, 24.6, 'treeBig'], [36, 27, 'treeApple'], [12, 27, 'treeSmall'], [29, 3.5, 'treeSmall'], [42.2, 15.4, 'treeSmall']];
+      [38.5, 24.6, 'treeBig'], [36, 27, 'treeApple'], [29, 3.5, 'treeSmall'], [42.2, 15.4, 'treeSmall'],
+      [36, 33, 'treeBig'], [39.5, 37, 'treeApple'], [35.5, 42, 'treeSmall'], [40.5, 46, 'treeBig'], [37, 51, 'treeApple'], [2, 30, 'treeSmall']];
     for (const [x, y, f] of groves) this.prop(f, x * TILE, y * TILE);
 
     // Bushes, rocks, stumps, flowers, mushrooms
@@ -624,13 +633,18 @@ export class World extends Phaser.Scene {
   }
 
   // ---------- player ----------
-  buildPlayer() {
+  /** Character animations (player, villagers, townsfolk all share the base sprite). */
+  createAnims() {
+    if (this.anims.exists('idle-down')) return;
     const dirs = ['down', 'up', 'left', 'right'];
     dirs.forEach((d, r) => {
       this.anims.create({ key: `idle-${d}`, frames: this.anims.generateFrameNumbers('player', { frames: [r * 4, r * 4 + 1] }), frameRate: 1.6, repeat: -1 });
       this.anims.create({ key: `walk-${d}`, frames: this.anims.generateFrameNumbers('player', { frames: [r * 4 + 2, r * 4 + 3] }), frameRate: 7, repeat: -1 });
       this.anims.create({ key: `water-${d}`, frames: this.anims.generateFrameNumbers('player-actions', { frames: [16 + r * 2, 17 + r * 2] }), frameRate: 3, repeat: 2 });
     });
+  }
+
+  buildPlayer() {
     const sx = Number(params.get('x')) || 16.5, sy = Number(params.get('y')) || 11.4;
     this.player = this.add.sprite(sx * TILE, sy * TILE, 'player').setOrigin(0.5, 32 / 48);
     if (!this.owner) this.player.setTint(hex(PAL.blueLight)); // visitors look a little different
@@ -759,7 +773,10 @@ export class World extends Phaser.Scene {
   questSeen() { try { return !!localStorage.getItem(this.questKey()); } catch { return true; } }
 
   updateGoal(time) {
-    const g = this.computeGoal();
+    let g = this.computeGoal();
+    // While the character does their own thing, say what they're doing.
+    if (this.owner && this.piloting && this.selfPilot.label && g.id !== 'urgent') g = { id: `auto-${this.selfPilot.label}`, text: this.selfPilot.label, sub: 'Move to take over' };
+    if (!this.owner && this.samPilot?.label && ['explore', 'pet', 'garden'].includes(g.id)) g = { ...g, sub: this.samPilot.label };
     const sig = `${g.id}|${g.progress}|${g.text}`;
     if (sig !== this.goalSig) { this.goalSig = sig; this.game.events.emit('goal', g); }
     const t = g.follow ? { x: g.follow.s.x, y: g.follow.s.y - 16 } : g.target;
@@ -904,7 +921,7 @@ export class World extends Phaser.Scene {
   buildAutopilot() {
     if (this.owner) {
       this.selfActor = new Actor(this, this.player, this.playerShadow);
-      this.selfPilot = new Autopilot(this, this.selfActor);
+      this.selfPilot = new Autopilot(this, this.selfActor, { real: true });
       this.footstep = (a) => { if (a === this.selfActor && this.cameras.main.worldView.contains(a.x, a.y)) sfx.step(Math.random() < 0.5); };
       return;
     }
@@ -921,6 +938,70 @@ export class World extends Phaser.Scene {
       label: () => ({ text: `Wave at ${this.view.name}` }),
       action: () => { this.visited.sam = true; this.samActor.bubbleIcon('gift-heart'); this.tweens.add({ targets: this.sam, y: this.sam.y - 5, duration: 140, yoyo: true }); sfx.open(); },
     });
+  }
+
+  // ---------- the dog ----------
+  buildDog() {
+    const home = { x: 23.5 * TILE, y: 10.6 * TILE };
+    this.add.image(home.x, home.y, 'dog-house').setOrigin(0.5, 1).setDepth(home.y);
+    this.add.image(home.x, home.y - 1, 'shadow').setDepth(-4).setScale(1.4, 1.2);
+    this.colliders.push({ x: home.x - 9, y: home.y - 8, w: 18, h: 7 });
+    this.rebuildWalkGrid();
+    this.dog = new Dog(this, home);
+    this.interactables.push({
+      x: 0, y: 0, r: 14, follow: { s: this.dog.sprite },
+      label: () => ({ text: 'Pet the dog' }),
+      action: () => { sfx.cluck(); this.hearts.explode(4, this.dog.x, this.dog.y - 12); this.tweens.add({ targets: this.dog.sprite, y: this.dog.y - 5, duration: 120, yoyo: true }); },
+    });
+  }
+
+  updateDog(dt) {
+    const owner = this.owner ? this.player : this.sam;
+    const pilot = this.owner ? (this.piloting ? this.selfPilot : null) : this.samPilot;
+    this.dog.update(dt, owner, { leash: !!pilot?.leash, napping: this.view.state === 'stale' });
+  }
+
+  throwBall(actor, spot) {
+    const ball = this.add.image(actor.x, actor.y - 14, 'p-dot').setScale(2).setTint(hex(PAL.roseDark)).setDepth(100000);
+    this.tweens.add({ targets: ball, x: spot.x, duration: 650, ease: 'Linear' });
+    this.tweens.add({ targets: ball, y: { from: actor.y - 14, to: spot.y - 2 }, duration: 650, ease: 'Quad.easeIn',
+      onComplete: () => this.dog.fetch({ x: spot.x, y: spot.y }, () => ball.destroy()) });
+    this.time.delayedCall(8000, () => ball.destroy());
+  }
+
+  /** Real tasks the owner's character does on their own while in range (they earn sunlight). */
+  autoTask() {
+    if (!this.owner || this.busyNet || this.busy || this.inputLocked) return null;
+    const v = this.view.valley, f = this.farm, w = this.wellPos;
+    if (this.pending >= 15 || this.gifts > 0) {
+      return { label: 'Collecting sunlight at the Sun Well', target: { x: w.x, y: w.y + 8 }, look: w, duration: 1.8, begin: () => this.collectSun() };
+    }
+    const spot = {
+      eggs: { x: SPOTS.coop.x * TILE + 22, y: SPOTS.coop.y * TILE + 10 },
+      harvest: { x: (SPOTS.patch.x0 + SPOTS.patch.w / 2) * TILE, y: (SPOTS.patch.y0 + SPOTS.patch.h) * TILE + 8 },
+      apples: { x: 38.4 * TILE, y: 13.9 * TILE },
+    };
+    const label = { eggs: 'Collecting eggs', milk: 'Milking the cow', harvest: 'Harvesting the veggie patch', apples: 'Picking apples' };
+    for (const [id, c] of Object.entries(CHORES)) {
+      if (!this.restored(c.needs) || f.chores?.[id] || (c.ripe && f.ripeness < 1)) continue;
+      if (id === 'milk') {
+        const cow = this.animals.find((an) => an.kind === 'cow');
+        if (!cow) continue;
+        return { label: label.milk, target: { x: cow.s.x - 14, y: cow.s.y + 2 }, followAnimal: cow, duration: 1.8, begin: () => this.doChore('milk', { x: cow.s.x, y: cow.s.y }) };
+      }
+      const at = spot[id];
+      return { label: label[id], target: at, duration: 1.8, begin: () => this.doChore(id, at) };
+    }
+    const recipe = this.restored('kitchen') && (f.dishesToday || 0) < 3 && suggestRecipe(f);
+    if (recipe) {
+      const k = this.kitchenAt;
+      return { label: `Cooking ${recipe.name.toLowerCase()}`, target: { x: k.x, y: k.y + 2 }, look: { x: k.x, y: k.y - 10 }, duration: 2.2, begin: () => this.doCook(recipe) };
+    }
+    if (!v.wateredToday) {
+      const p = this.todayPlant;
+      return { label: "Watering today's sprout", target: { x: p.x, y: p.y + 12 }, look: { x: p.x, y: p.y }, duration: 2, begin: () => this.waterSprout() };
+    }
+    return null;
   }
 
   // ---------- cottage interior ----------
@@ -1086,6 +1167,8 @@ export class World extends Phaser.Scene {
     this.updatePlayer(dt);
     this.updateAnimals(dt);
     this.updateVillager(dt);
+    updateTown(this, dt);
+    this.updateDog(dt);
     if (this.samPilot) {
       this.samPilot.update(dt, this.view.state);
       this.samTag.setPosition(Math.round(this.sam.x), Math.round(this.sam.y) - 22);

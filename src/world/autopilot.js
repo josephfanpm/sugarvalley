@@ -1,7 +1,8 @@
 // The character lives in the valley on their own, acting out their blood sugar:
-//   in range: pets animals, waters the garden, cooks, wanders, sits by the pond
-//   low: heads for a snack (juice box, apple), moves slower
-//   high: jogs laps, drinks water at the well
+//   in range: does real tasks that earn sunlight (owner only), then pets animals, plays fetch, fishes,
+//             chats with townsfolk, reads, tends the garden…
+//   low: walks into town and eats (coffee shop, restaurant, bakery, juice, ice cream) until back in range
+//   high: gym, track laps, walks the dog, yoga, water at the fountain, walks around the pond
 //   urgent low/high: sits and treats (juice / water), with a "!" bubble
 //   no recent data: naps by the cottage
 // Drives the owner's character after a few idle seconds, and Sam's character for visitors.
@@ -10,11 +11,13 @@ import { PAL, hex } from '../data/palette.js';
 
 const BASE_SPEED = 52;
 
-// Weighted activity choices per state.
+// Weighted activity choices per state. In range, the owner's character first does real tasks that
+// earn sunlight (World.autoTask); these are the in-between activities. 33 activities in all.
 const PLAN = {
-  in_range: [['pet', 3], ['garden', 2], ['wander', 2], ['sunflowers', 1], ['pond', 1], ['cook', 1], ['chickens', 1]],
-  low: [['snack', 6], ['rest', 2], ['garden', 1]],
-  high: [['jog', 4], ['drink', 3], ['wander', 1], ['pet', 1]],
+  in_range: [['pet', 3], ['fetch', 2], ['garden', 2], ['wander', 1], ['sunflowers', 1], ['pond', 1], ['fish', 1], ['chat', 2],
+    ['fountain', 1], ['read', 1], ['flowers', 1], ['maple', 1], ['chickens', 1]],
+  low: [['coffee', 3], ['restaurant', 3], ['bakery', 2], ['juice', 2], ['icecream', 1], ['homeSnack', 1]],
+  high: [['gym', 3], ['track', 3], ['walkDog', 3], ['yoga', 1], ['fountainDrink', 2], ['pondWalk', 1], ['stretch', 1]],
   urgent_low: [['treat_low', 1]],
   urgent_high: [['treat_high', 1]],
   stale: [['nap', 1]],
@@ -129,26 +132,39 @@ export class Actor {
 
 /** Chooses and runs activities for an Actor based on the current glucose state. */
 export class Autopilot {
-  constructor(scene, actor, { name = null } = {}) {
-    this.s = scene; this.a = actor; this.name = name;
-    this.phase = 'idle'; this.wait = 0.5; this.current = null; this.lastState = null;
+  constructor(scene, actor, { name = null, real = false } = {}) {
+    this.s = scene; this.a = actor; this.name = name; this.real = real;
+    this.phase = 'idle'; this.wait = 0.5; this.current = null; this.lastState = null; this.label = null; this.last = null;
   }
 
-  reset() { this.a.stop(); this.phase = 'idle'; this.wait = 0.4; this.current = null; this.a.sprite.anims.timeScale = 1; }
+  reset() {
+    this.current?.end?.();
+    this.a.stop(); this.phase = 'idle'; this.wait = 0.4; this.current = null; this.label = null;
+    this.a.sprite.anims.timeScale = 1;
+    this.tweenStop();
+  }
+  tweenStop() { if (this.tw) { this.tw.remove(); this.tw = null; this.a.sprite.setScale(1); } }
+  get leash() { return this.phase !== 'idle' && !!this.current?.leash; }
 
   update(dt, state) {
     if (state !== this.lastState) { this.lastState = state; if (this.current) this.reset(); }
     const mul = SPEED_MUL[state] || 1;
-    const a = this.a;
+    const a = this.a, act = this.current;
     if (this.phase === 'walking') {
-      if (this.current?.followAnimal) {
-        const an = this.current.followAnimal;
+      if (act?.followAnimal) {
+        const an = act.followAnimal;
         if (Math.hypot(an.s.x - a.x, an.s.y - a.y) < 14) { a.path = null; this.arrive(); }
       }
-      if (this.phase === 'walking' && !a.walk(dt, this.current?.speed ?? mul)) this.arrive();
+      if (this.phase === 'walking' && !a.walk(dt, act?.speed ?? mul)) {
+        if (act.route && this.routeIdx < act.route.length) this.stepRoute();
+        else this.arrive();
+      }
     } else if (this.phase === 'doing') {
-      this.current.tick?.(dt);
-      if ((this.wait -= dt) <= 0) { this.current.end?.(); a.clearBubble(); this.phase = 'idle'; this.wait = 0.6 + Math.random() * 1.4; a.sprite.anims.timeScale = 1; }
+      act.tick?.(dt);
+      if ((this.wait -= dt) <= 0) {
+        act.end?.(); a.clearBubble(); this.tweenStop();
+        this.phase = 'idle'; this.wait = 0.6 + Math.random() * 1.2; a.sprite.anims.timeScale = 1; this.current = null; this.label = null;
+      }
     } else if ((this.wait -= dt) <= 0) {
       this.start(state);
     } else a.sprite.play(`idle-${a.facing}`, true);
@@ -156,17 +172,36 @@ export class Autopilot {
   }
 
   start(state) {
-    const plan = PLAN[state] || PLAN.in_range;
-    for (let tries = 0; tries < 4; tries++) {
-      const kind = pickWeighted(plan);
-      const act = this.make(kind);
-      if (!act) continue;
-      this.current = act;
-      if (act.target && !this.a.goTo(act.target.x, act.target.y)) continue;
-      this.phase = 'walking';
-      return;
+    if (this.real && state === 'in_range') {
+      const task = this.s.autoTask?.();
+      if (task && this.begin(task)) return;
     }
-    this.wait = 1; // nothing possible; try again soon
+    const plan = PLAN[state] || PLAN.in_range;
+    for (let tries = 0; tries < 6; tries++) {
+      const kind = pickWeighted(plan);
+      if (kind === this.last && plan.length > 1) continue; // vary it up
+      const act = this.make(kind);
+      if (act && this.begin(act)) { this.last = kind; return; }
+    }
+    this.wait = 1;
+  }
+
+  begin(act) {
+    this.current = act;
+    this.label = act.label || null;
+    this.routeIdx = 0;
+    if (act.route) { act.route = act.route.map((p) => ({ ...p })); return this.stepRoute(); }
+    if (act.target && !this.a.goTo(act.target.x, act.target.y)) { this.current = null; this.label = null; return false; }
+    if (act.target) this.phase = 'walking'; else this.arrive();
+    return true;
+  }
+
+  stepRoute() {
+    const p = this.current.route[this.routeIdx++];
+    this.current.onWaypoint?.(this.routeIdx);
+    if (!this.a.goTo(p.x, p.y)) { this.arrive(); return true; }
+    this.phase = 'walking';
+    return true;
   }
 
   arrive() {
@@ -176,73 +211,143 @@ export class Autopilot {
     if (act.look) this.a.faceToward(act.look.x, act.look.y);
     this.a.sprite.play(`idle-${this.a.facing}`, true);
     act.begin?.();
-    // jog keeps going around the loop
-    if (act.loop?.length) { this.phase = 'walking'; this.a.goTo(act.loop[0].x, act.loop[0].y); act.loop.shift(); }
   }
 
+  /** Gentle bobbing (squats, eating, breathing). */
+  bob(scaleY = 0.9, ms = 380) {
+    this.tweenStop();
+    this.tw = this.s.tweens.add({ targets: this.a.sprite, scaleY, scaleX: 1 + (1 - scaleY) * 0.6, duration: ms, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+
+  /** Eat until back in range: cycles foods; never ends on its own (a state change ends it). */
+  eatAt(spot, label, foods) {
+    const a = this.a;
+    let t = 0, i = 0;
+    const show = () => { const [k, f] = foods[i++ % foods.length]; a.bubbleIcon(k, f); };
+    return {
+      label, target: spot, look: { x: spot.x, y: spot.y - 30 }, duration: Infinity, speed: SPEED_MUL.low,
+      begin: () => { show(); this.bob(0.95, 520); },
+      tick: (dt) => { if ((t += dt) > 4.5) { t = 0; show(); } },
+    };
+  }
+
+  /** "You are…" for the owner, "Sam is…" for visitors. */
+  say(you, them) { return this.name ? `${this.name} is ${them}` : you; }
+
   make(kind) {
-    const s = this.s, a = this.a;
+    const s = this.s, a = this.a, sp = s.town?.spots || {};
     const P = (x, y) => ({ x: x * TILE, y: y * TILE });
     const door = s.cottageDoor;
     switch (kind) {
+      // ---------- in range ----------
       case 'wander': {
         const t = s.randomWalkable(a);
-        return t && { target: t, duration: 1.5 + Math.random() * 2.5 };
+        return t && { label: this.say('Taking a stroll', 'taking a stroll'), target: t, duration: 1.5 + Math.random() * 2.5 };
       }
       case 'pet':
       case 'chickens': {
         const pool = s.animals.filter((an) => (kind === 'chickens' ? an.kind === 'chicken' : true) && (!s.isEast(an.s.x, an.s.y) || s.restored('bridge')));
         const an = pool[Math.floor(Math.random() * pool.length)];
         if (!an) return null;
-        return { target: { x: an.s.x + (Math.random() < 0.5 ? -12 : 12), y: an.s.y + 2 }, followAnimal: an, duration: 2.2,
+        return { label: this.say(`Petting the ${an.kind}`, `petting the ${an.kind}`), target: { x: an.s.x + (Math.random() < 0.5 ? -12 : 12), y: an.s.y + 2 }, followAnimal: an, duration: 2.4,
           begin: () => { a.faceToward(an.s.x, an.s.y); a.sprite.play(`idle-${a.facing}`, true); s.petAnimal(an, true); a.bubbleIcon('gift-heart'); } };
+      }
+      case 'fetch': {
+        if (!s.dog) return null;
+        const spot = s.randomWalkable(a);
+        if (!spot) return null;
+        return { label: this.say('Playing fetch with the dog', 'playing fetch with the dog'), duration: 4.5,
+          begin: () => { a.bubbleIcon('icon-paw'); s.throwBall(a, spot); } };
       }
       case 'garden': {
         const plants = s.gardenPlants || [];
         const p = plants[Math.floor(Math.random() * plants.length)];
         if (!p) return null;
-        return { target: { x: p.x, y: p.y + 12 }, look: { x: p.x, y: p.y }, duration: 2.4,
+        return { label: this.say('Tending the Garden of Days', 'tending the Garden of Days'), target: { x: p.x, y: p.y + 12 }, look: { x: p.x, y: p.y }, duration: 2.6,
           begin: () => { a.sprite.play(`water-${a.facing}`); s.drops.explode(6, p.x, p.y - 8); } };
       }
       case 'sunflowers': {
         const f = s.sunflowerSpots?.[Math.floor(Math.random() * s.sunflowerSpots.length)];
-        return f && { target: { x: f.x, y: f.y + 10 }, look: f, duration: 3, begin: () => a.bubbleIcon('icon-note') };
+        return f && { label: this.say('Admiring the sunflowers', 'admiring the sunflowers'), target: { x: f.x, y: f.y + 10 }, look: f, duration: 3, begin: () => a.bubbleIcon('icon-note') };
       }
       case 'pond': {
-        const spot = s.restored('dock') ? s.dockSpot : P(21.5, 19.6);
-        return { target: spot, look: { x: spot.x, y: spot.y + 30 }, duration: 4, begin: () => a.bubbleIcon('icon-note') };
+        const spot = P(21.5, 19.6);
+        return { label: this.say('Watching the pond', 'watching the pond'), target: spot, look: { x: spot.x, y: spot.y + 30 }, duration: 4, begin: () => a.bubbleIcon('icon-note') };
       }
-      case 'cook': {
-        if (!s.restored('kitchen')) return null;
-        const k = s.kitchenAt;
-        return { target: { x: k.x, y: k.y + 2 }, look: { x: k.x, y: k.y - 10 }, duration: 4.5,
-          begin: () => a.bubbleIcon('icon-pot'), tick: () => { if (Math.random() < 0.15) s.steam.emitParticleAt(k.x + (Math.random() * 6 - 3), k.y - 20); } };
+      case 'fish': {
+        if (!s.restored('dock')) return null;
+        const spot = s.dockSpot;
+        return { label: this.say('Fishing off the dock', 'fishing off the dock'), target: spot, look: { x: spot.x, y: spot.y + 30 }, duration: 7,
+          begin: () => a.bubbleIcon('icon-note'),
+          tick: () => { if (Math.random() < 0.006) { a.bubbleIcon('icon-fish'); s.drops.explode(5, spot.x, spot.y + 12); } } };
       }
-      case 'snack': {
+      case 'chat': {
+        const folk = s.folk || [];
+        const f = folk[Math.floor(Math.random() * folk.length)];
+        if (!f) return null;
+        const first = f.name.split(' ')[0];
+        return { label: this.say(`Chatting with ${first}`, `chatting with ${first}`), target: { x: f.sprite.x + 14, y: f.sprite.y + 2 }, look: f.sprite, duration: 3.5,
+          begin: () => { a.bubbleIcon('icon-chat'); f.actor.faceToward(a.x, a.y); f.sprite.play(`idle-${f.actor.facing}`); f.actor.bubbleIcon('icon-chat'); s.time.delayedCall(3000, () => f.actor.clearBubble()); } };
+      }
+      case 'maple':
+        return s.maple && { label: this.say('Saying hi to Maple', 'saying hi to Maple'), target: { x: s.maple.x + 14, y: s.maple.y + 2 }, look: s.maple, duration: 3,
+          begin: () => { a.bubbleIcon('icon-chat'); s.mapleActor.bubbleIcon('gift-heart'); } };
+      case 'fountain':
+        return sp.fountain && { label: this.say('Sitting by the fountain', 'sitting by the fountain'), target: sp.fountain, look: { x: sp.fountain.x, y: sp.fountain.y - 20 }, duration: 4.5, begin: () => a.bubbleIcon('icon-note') };
+      case 'read': {
+        const b = Math.random() < 0.5 ? sp.benchW : sp.benchE;
+        return b && { label: this.say('Reading on a bench', 'reading on a bench'), target: b, look: { x: b.x, y: b.y + 20 }, duration: 6, begin: () => { a.bubbleIcon('icon-book'); this.bob(0.97, 900); } };
+      }
+      case 'flowers':
+        return sp.flowers && { label: this.say('Picking out flowers', 'picking out flowers'), target: sp.flowers, look: { x: sp.flowers.x, y: sp.flowers.y - 20 }, duration: 3.5, begin: () => a.bubbleIcon('icon-flower') };
+
+      // ---------- low: eat until back in range ----------
+      case 'coffee':
+        return sp.coffeeSeat && this.eatAt(sp.coffeeSeat, this.say('Having cocoa and a croissant at The Sunny Cup', 'having cocoa and a croissant at The Sunny Cup'), [['icon-coffee'], ['icon-croissant']]);
+      case 'restaurant':
+        return sp.restaurantSeat && this.eatAt(sp.restaurantSeat, this.say('Eating at Valley Kitchen', 'eating at Valley Kitchen'), [['icon-meal'], ['icon-forkknife']]);
+      case 'bakery':
+        return sp.bakery && this.eatAt(sp.bakery, this.say('Grabbing a snack at the bakery', 'grabbing a snack at the bakery'), [['icon-croissant'], ['dish-bread']]);
+      case 'juice':
+        return sp.juice && this.eatAt(sp.juice, this.say('Having juice at the stand', 'having juice at the stand'), [['icon-juice']]);
+      case 'icecream':
+        return sp.icecream && this.eatAt(sp.icecream, this.say('Having an ice cream', 'having an ice cream'), [['icon-icecream']]);
+      case 'homeSnack': {
         const k = s.restored('kitchen') ? s.kitchenAt : door;
-        return { target: { x: k.x + 8, y: k.y + 4 }, duration: 5, speed: SPEED_MUL.low,
-          begin: () => { if (Math.random() < 0.6) a.bubbleIcon('icon-juice'); else a.bubbleIcon('nature', 'apple'); } };
+        return this.eatAt({ x: k.x + 8, y: k.y + 4 }, this.say('Having a snack at home', 'having a snack at home'), [['icon-juice'], ['nature', 'apple']]);
       }
-      case 'rest': {
-        return { target: { x: door.x - 14, y: door.y + 6 }, duration: 5, begin: () => a.bubbleIcon('icon-juice') };
-      }
-      case 'jog': {
-        const loop = [P(16.5, 14.6), P(24.5, 15.3), P(21, 13.2), P(14.2, 13.6), P(10.5, 15.6), P(16.5, 14.6)];
-        return { target: loop.shift(), loop, speed: 1.6, duration: 0.2,
-          begin: () => { if (Math.random() < 0.6) s.sweat.emitParticleAt(a.x + 4, a.y - 22); } };
-      }
-      case 'drink': {
-        const w = s.wellPos;
-        return { target: { x: w.x + 16, y: w.y + 8 }, look: w, duration: 3.5, begin: () => a.bubbleIcon('milk-grass', 'water') };
-      }
+
+      // ---------- high: move to bring it down ----------
+      case 'gym':
+        return sp.gym && { label: this.say('Lifting at Steady Strength Gym', 'lifting at Steady Strength Gym'), target: sp.gym, look: { x: sp.gym.x, y: sp.gym.y - 20 }, duration: 9,
+          begin: () => { a.bubbleIcon('icon-dumbbell'); this.bob(0.86, 420); },
+          tick: () => { if (Math.random() < 0.02) s.sweat.emitParticleAt(a.x + 4, a.y - 22); } };
+      case 'track':
+        return sp.track && { label: this.say('Running laps at the track', 'running laps at the track'), route: [...sp.track, ...sp.track, sp.track[0]], speed: 1.7, duration: 1.5,
+          onWaypoint: (i) => { if (i % 3 === 1) a.bubbleIcon('icon-shoe'); if (Math.random() < 0.5) s.sweat.emitParticleAt(a.x + 4, a.y - 22); } };
+      case 'walkDog':
+        return s.dog && sp.dogWalk && { label: this.say('Walking the dog', 'walking the dog'), route: sp.dogWalk.slice(Math.random() < 0.5 ? 0 : 3).concat(sp.dogPark), speed: 1.15, leash: true, duration: 3,
+          onWaypoint: (i) => { if (i % 3 === 1) a.bubbleIcon('icon-paw'); } };
+      case 'yoga':
+        return sp.yoga && { label: this.say('Doing yoga in the park', 'doing yoga in the park'), target: sp.yoga, duration: 8, begin: () => { a.bubbleIcon('gift-heart'); this.bob(0.92, 1400); } };
+      case 'fountainDrink':
+        return sp.fountainDrink && { label: this.say('Drinking water at the fountain', 'drinking water at the fountain'), target: sp.fountainDrink, look: sp.fountain, duration: 3.5, begin: () => a.bubbleIcon('milk-grass', 'water') };
+      case 'pondWalk':
+        return sp.pondWalk && { label: this.say('Walking around the pond', 'walking around the pond'), route: sp.pondWalk, speed: 1.2, duration: 1, onWaypoint: (i) => { if (i === 1) a.bubbleIcon('icon-shoe'); } };
+      case 'stretch':
+        return sp.gym && { label: this.say('Stretching by the gym', 'stretching by the gym'), target: { x: sp.gym.x - 26, y: sp.gym.y }, duration: 5, begin: () => { a.bubbleIcon('icon-shoe'); this.bob(0.88, 700); } };
+
+      // ---------- urgent and no data ----------
       case 'treat_low':
-        return { target: { x: door.x - 14, y: door.y + 6 }, duration: 6, speed: 0.6,
-          begin: () => a.bubbleIcon('icon-juice'), tick: () => { if (!a.bubble || Math.random() < 0.004) a.bubbleIcon(Math.random() < 0.5 ? 'icon-bang' : 'icon-juice'); } };
+        return { label: this.say('Treating a low at home', 'treating a low at home'), target: { x: door.x - 14, y: door.y + 6 }, duration: Infinity, speed: 0.6,
+          begin: () => a.bubbleIcon('icon-juice'),
+          tick: () => { if (Math.random() < 0.004) { if (Math.random() < 0.5) a.bubbleIcon('icon-bang'); else a.bubbleIcon('icon-juice'); } } };
       case 'treat_high':
-        return { target: { x: door.x + 14, y: door.y + 6 }, duration: 6, speed: 0.7,
-          begin: () => a.bubbleIcon('milk-grass', 'water'), tick: () => { if (Math.random() < 0.004) { if (Math.random() < 0.5) a.bubbleIcon('icon-bang'); else a.bubbleIcon('milk-grass', 'water'); } } };
+        return { label: this.say('Resting and drinking water at home', 'resting and drinking water at home'), target: { x: door.x + 14, y: door.y + 6 }, duration: Infinity, speed: 0.7,
+          begin: () => a.bubbleIcon('milk-grass', 'water'),
+          tick: () => { if (Math.random() < 0.004) { if (Math.random() < 0.5) a.bubbleIcon('icon-bang'); else a.bubbleIcon('milk-grass', 'water'); } } };
       case 'nap':
-        return { target: { x: door.x - 18, y: door.y + 8 }, look: { x: door.x - 18, y: door.y + 30 }, duration: 8,
+        return { label: this.say('Napping by the cottage', 'napping by the cottage'), target: { x: door.x - 18, y: door.y + 8 }, look: { x: door.x - 18, y: door.y + 30 }, duration: Infinity,
           begin: () => a.bubbleIcon('icon-z'), tick: () => { if (Math.random() < 0.02) s.zzz.emitParticleAt(a.x + 6, a.y - 22); } };
       default: return null;
     }

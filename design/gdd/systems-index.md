@@ -22,6 +22,8 @@
 | 18 | Living character (autopilot) | Presentation | MVP | `src/world/autopilot.js` | Built |
 | 20 | Cottage interior (ribbons, dishes) | Feature | MVP | `src/scenes/Interior.js` | Built |
 | 21 | Music (CC0) | Polish | MVP | `assets/audio/CREDITS.md` | Built |
+| 22 | Town (shops, plaza, gym, track, dog park, townsfolk, dog) | Content | MVP | `town.md` | Built |
+| 23 | 33 automatic actions by glucose state | Presentation | MVP | `town.md` | Built |
 | 19 | Sign in with Google / Apple | Foundation | MVP | `server/auth.js` | Built (needs client IDs) |
 
 ## Build order

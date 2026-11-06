@@ -1,6 +1,7 @@
-// Terrain for the Forest hamlet: land/water grid and blob autotiling for Sprout Lands Grass.png.
+// Terrain for the valley: the Forest hamlet (north) and the town (south). Land/water grid and blob
+// autotiling for Sprout Lands Grass.png.
 export const TILE = 16;
-export const COLS = 44, ROWS = 30;
+export const COLS = 44, ROWS = 58;
 
 // mask (N1 E2 S4 W8 NE16 SE32 SW64 NW128, corners only when both sides set) -> Grass.png index.
 // Derived by sampling the edge and corner pixels of each tile for opacity.
@@ -48,6 +49,19 @@ export function buildPaths(water) {
   line([[14, 13.8], [11.5, 15], [9, 16.5]]);
   line([[14.2, 12], [11.5, 10.8], [8.5, 9.6]], 0.6);
   line([[33.5, 15.5], [36, 16], [38.5, 17.5]], 0.6);
+  // ---- Town (south) ----
+  line([[15.6, 14.6], [15.6, 20], [15.4, 26], [15.5, 34]], 0.85); // main street from the hamlet
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    // town plaza around the fountain
+    if (((x + 0.5 - 15.5) / 9.4) ** 2 + ((y + 0.5 - 37.6) / 3.8) ** 2 <= 1) path[y][x] = true;
+    // running track: an oval ring with grass inside
+    const d = ((x + 0.5 - 11) / 7) ** 2 + ((y + 0.5 - 51.5) / 3.6) ** 2;
+    const di = ((x + 0.5 - 11) / 5.2) ** 2 + ((y + 0.5 - 51.5) / 2.1) ** 2;
+    if (d <= 1 && di > 1) path[y][x] = true;
+  }
+  line([[15.5, 41], [15.5, 45.5], [19.5, 46.5], [24, 50.4]], 0.75); // to the gym
+  line([[15.5, 45.5], [12, 47.6]], 0.7); // to the track
+  line([[24, 50.4], [24, 52]], 0.6); // dog park gate
   // Smooth: grass tiles mostly surrounded by path become path (no one-tile bumps).
   for (let pass = 0; pass < 2; pass++) {
     for (let y = 1; y < ROWS - 1; y++) for (let x = 1; x < COLS - 1; x++) {
