@@ -255,6 +255,21 @@ export function makeSprites(scene) {
   canvasTexture(scene, 'float-lantern', 7, 9, (c) => art(c, [
     '...k...', '.kkkkk.', 'kGGgggk', 'kGgggok', 'kgggook', 'kggoook', '.kkkkk.', '.wwwww.', 'wwwwwww',
   ], { k: PAL.peachDark, G: PAL.sun, g: PAL.gold, o: PAL.goldDark, w: 'rgba(255,255,255,0.35)' }));
+  // Dishes for the cottage table (one per recipe cooked)
+  const PLATE = ['..........', '..........', '..........', '..........', '.kpppppPk.', 'kpPPPPPPpk', '.kkkkkkkk.', '..........'];
+  const dish = (id, top, map) => canvasTexture(scene, `dish-${id}`, 10, 8, (c) => {
+    art(c, PLATE, { k: PAL.stoneDark, p: PAL.stoneLight, P: '#fbf4df' });
+    art(c, top, map);
+  });
+  dish('pancakes', ['..........', '...yyyy...', '..oOOOOo..', '..oyyyyo..', '..oOOOOo..'], { y: PAL.yellow, o: PAL.peachDark, O: PAL.peach });
+  dish('applepie', ['..........', '..........', '..oOOOOo..', '.oRoRoRoo.', '..oooooo..'], { o: PAL.peachDark, O: PAL.peach, R: PAL.roseDark });
+  dish('omelette', ['..........', '..........', '...yyyy...', '..yYYYYy..', '..yyyyyy..'], { y: PAL.goldDark, Y: PAL.yellow });
+  dish('roast', ['..........', '..........', '...vvvg...', '..vVVvvv..', '..vvvvv...'], { v: PAL.violetDark, V: PAL.violet, g: PAL.leafMid });
+  dish('bread', ['..........', '..........', '...wwww...', '..wWlWlw..', '..wwwwww..'], { w: PAL.wood, W: PAL.woodLight, l: '#e8cfa6' });
+  const MUG = (fill, foam) => ['..........', '..kkkkk...', '..kffffkk.', '..kFFFFk.k', '..kFFFFkk.', '..kFFFFk..', '...kkkk...', '..........'].map((r) => r);
+  canvasTexture(scene, 'dish-cider', 10, 8, (c) => art(c, MUG(), { k: PAL.woodDark, f: PAL.goldLight, F: PAL.goldDark }));
+  canvasTexture(scene, 'dish-cocoa', 10, 8, (c) => art(c, MUG(), { k: PAL.woodDark, f: '#fbf4df', F: PAL.cream }));
+
   canvasTexture(scene, 'ribbon', 5, 8, (c) => art(c, ['.kkk.', 'kgGgk', 'kgggk', '.kkk.', '.r.r.', '.r.r.', 'r...r', '.....'], { k: PAL.goldDark, g: PAL.gold, G: PAL.sun, r: PAL.roseDark }));
   canvasTexture(scene, 'p-butterfly', 5, 4, (c) => art(c, ['ww.ww', 'wwkww', '.wkw.', '.w.w.'], { w: '#ffffff', k: PAL.inkDark }));
   canvasTexture(scene, 'p-petal', 2, 2, (c) => art(c, ['pP', 'p.'], { p: PAL.rose, P: PAL.roseLight }));

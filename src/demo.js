@@ -13,7 +13,9 @@ const fresh = () => ({
   sun: Number(q.get('sun')) || 120, collectedThrough: 0, wateredDay: 0, gifts: [],
   restored: Object.fromEntries((q.get('restored') || '').split(',').filter(Boolean).map((id) => [id, 1])),
   inventory: Object.fromEntries((q.get('inv') || '').split(',').filter(Boolean).map((p) => { const [k, n] = p.split(':'); return [k, Number(n)]; })),
-  chores: {}, cookbook: {}, day: 0, dishesToday: 0, journal: {}, quests: {},
+  chores: {}, day: 0, dishesToday: 0, journal: {}, quests: {},
+  cookbook: Object.fromEntries((q.get('cooked') || '').split(',').filter(Boolean).map((id) => [id, 1])),
+  ribbons: Number(q.get('ribbons')) || 0,
 });
 
 function load() {

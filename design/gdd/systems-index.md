@@ -12,7 +12,7 @@
 | 8 | Villagers & pattern quests | Feature | MVP | `quests-journal.md` | Built (Maple) |
 | 9 | Day/night & weather from local clock | Presentation | MVP | `art-bible.md` | Slice |
 | 10 | HUD & menus | Presentation | MVP | `art-bible.md` | Slice |
-| 11 | Audio (SFX, ambience, music) | Polish | MVP | — | Slice (synth SFX) |
+| 11 | Audio (SFX, ambience, music) | Polish | MVP | — | Built (CC0 + synth) |
 | 12 | Visitors (share link, gifts) + account setup | Feature | MVP | `visitors.md` | Built |
 | 13 | Festivals | Feature | Post-MVP | — | Not started |
 | 14 | Districts 2–5 | Content | Post-MVP | — | Not started |
@@ -20,6 +20,8 @@
 | 16 | Farm: restorables, chores, cooking | Core | MVP | `farm.md` | Built |
 | 17 | Garden Journal, comebacks, streak, recap | Feature | MVP | `quests-journal.md` | Built |
 | 18 | Living character (autopilot) | Presentation | MVP | `src/world/autopilot.js` | Built |
+| 20 | Cottage interior (ribbons, dishes) | Feature | MVP | `src/scenes/Interior.js` | Built |
+| 21 | Music (CC0) | Polish | MVP | `assets/audio/CREDITS.md` | Built |
 | 19 | Sign in with Google / Apple | Foundation | MVP | `server/auth.js` | Built (needs client IDs) |
 
 ## Build order

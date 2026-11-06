@@ -410,6 +410,11 @@ export class World extends Phaser.Scene {
     this.add.image(x + 52, bottom + 6, 'chest', 'closed').setOrigin(0.5, 1).setDepth(bottom + 2);
     this.journalBox = { x: x + 52, y: bottom + 6 };
     this.cottageDoor = { x, y: bottom + 6 };
+    this.interactables.push({
+      x, y: bottom + 6, r: 12,
+      label: () => ({ text: this.owner ? 'Go inside' : `Visit ${this.view.name}'s cottage` }),
+      action: () => this.enterCottage(),
+    });
     this.colliders.push({ x: x + 46, y: bottom, w: 12, h: 5 });
   }
 
@@ -783,7 +788,7 @@ export class World extends Phaser.Scene {
 
   interact() {
     unlockAudio();
-    if (this.inputLocked) return;
+    if (this.inputLocked || this.sys.isSleeping()) return;
     if (this.busy) return;
     const it = this.nearest();
     if (it?.action) it.action();
@@ -916,6 +921,30 @@ export class World extends Phaser.Scene {
       label: () => ({ text: `Wave at ${this.view.name}` }),
       action: () => { this.visited.sam = true; this.samActor.bubbleIcon('gift-heart'); this.tweens.add({ targets: this.sam, y: this.sam.y - 5, duration: 140, yoyo: true }); sfx.open(); },
     });
+  }
+
+  // ---------- cottage interior ----------
+  enterCottage() {
+    if (this.inCottage) return;
+    this.inCottage = true;
+    sfx.open();
+    this.game.events.emit('prompt', null);
+    this.cameras.main.fadeOut(250, 20, 16, 30);
+    this.time.delayedCall(260, () => {
+      this.scene.sleep();
+      this.scene.launch('Interior');
+      this.scene.bringToTop('Hud');
+    });
+  }
+
+  exitedCottage() {
+    this.inCottage = false;
+    this.player.setPosition(this.cottageDoor.x, this.cottageDoor.y + 10);
+    this.facing = 'down';
+    this.player.play('idle-down');
+    this.idle = 0; this.piloting = false; this.selfPilot?.reset();
+    this.cameras.main.fadeIn(300, 20, 16, 30);
+    this.goalSig = null; this.lastNear = undefined;
   }
 
   async collectSun() {

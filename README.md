@@ -64,6 +64,7 @@ Add these to `/game/`:
 | `&restored=bridge,coop` | Start with these restored |
 | `&inv=egg:3,milk:1` | Start with this in the basket |
 | `&nointro`, `&norecap` | Skip the intro card / morning recap |
+| `&cooked=pancakes,bread`, `&ribbons=3` | Preview the cottage with dishes and ribbons |
 | `&fresh` | Ignore the demo save |
 | `&sun=400` | Start with this much sunlight (with `fresh`) |
 | `&t=20.5` | Freeze the clock at this hour (lighting) |
@@ -92,6 +93,8 @@ to an owner key to sign in first.
 - **Maple's weekly goal:** built from your weakest time of day over the last two weeks.
 - **Garden Journal:** tag what happened on a day; insights show which tags line up with better days.
 - **Comebacks, steady streaks, morning recap:** see [design/gdd/quests-journal.md](design/gdd/quests-journal.md).
+- **Cottage:** walk in through the door. Ribbons from weekly goals hang on the wall and every recipe
+  you've cooked sits on the table. Visitors can come in too.
 - **Living character:** stop moving and your character acts out your blood sugar; visitors see Sam
   walking around.
 - **Knowing what to do:** a how-it-works card on first visit (? to reopen), a NEXT box with the next
@@ -110,7 +113,8 @@ src/                 the game (Phaser 3.90, ES modules, no build step) — serve
   ui/graph.js        pixel-art glucose graph
   world/             terrain + autotiling, cottage builder, Garden of Days plants, pixel helpers
   data/              palette, balance knobs, CGM math (scoring, sunlight, demo data)
-  audio.js           synthesized SFX, ambience and music box
+  audio.js, music.js sound effects (Kenney CC0 + synthesized), ambience, CC0 music (assets/audio/CREDITS.md)
+  scenes/Interior.js the cottage interior
 assets/art/          Sprout Lands sheets used by the game (from `npm run assets`)
 server/              Node server: CGM connectors (Nightscout, Dexcom Share, LibreLinkUp, demo), poller, API
   valley.js          valley state: sunlight (computed from readings), restore, water, visitor gifts

@@ -1,6 +1,7 @@
 import { Boot } from './scenes/Boot.js';
 import { World } from './scenes/World.js';
 import { Hud } from './scenes/Hud.js';
+import { Interior } from './scenes/Interior.js';
 
 window.game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -10,7 +11,7 @@ window.game = new Phaser.Game({
   roundPixels: true,
   scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
   input: { activePointers: 2 },
-  scene: [Boot, World, Hud],
+  scene: [Boot, World, Hud, Interior],
 });
 
 
