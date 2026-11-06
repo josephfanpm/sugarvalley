@@ -191,11 +191,11 @@ export const BUILDINGS = {
       s.counterBar('counter-desk', 3.4, 7.4);
       s.add.image(2.8 * T, 6.5 * T, 'computer').setOrigin(0.5, 1).setDepth(7.4 * T + 2);
       s.staffAt('coach', 3.4, 6.1, PAL.leafLight, ['"Welcome in! Grab a machine."', '"Water\'s by the mirror. Hydrate!"']);
-      s.machine('treadmill', 'treadmill-0', 2.6, 2.9, { label: 'Run on the treadmill', spot: [2.8, 2.6], face: 'right', anim: 'walk-right', rate: 1.8, belt: true, icon: 'icon-shoe' });
-      s.machine('treadmill2', 'treadmill-0', 5.2, 2.9, { label: 'Run on the treadmill', spot: [5.4, 2.6], face: 'right', anim: 'walk-right', rate: 1.8, belt: true, icon: 'icon-shoe' });
-      s.machine('squat', 'squat-rack', 8.6, 3.4, { label: 'Squats at the squat rack', spot: [8.6, 3.0], face: 'down', bob: [0.78, 520], icon: 'icon-dumbbell', front: true });
-      s.machine('bench', 'bench-press', 11.8, 3.0, { label: 'Bench press', spot: [11.6, 2.7], face: 'down', bob: [0.88, 600], icon: 'icon-dumbbell' });
-      s.machine('bike', 'bike', 14.2, 4.6, { label: 'Ride the exercise bike', spot: [14.1, 4.3], face: 'left', anim: 'walk-left', rate: 0.9, icon: 'icon-shoe', front: true });
+      s.machine('treadmill', 'treadmill-0', 2.6, 2.9, { label: 'Run on the treadmill', spot: [2.6, 3.4], pose: 'treadmill', belt: true, icon: 'icon-shoe' });
+      s.machine('treadmill2', 'treadmill-0', 5.2, 2.9, { label: 'Run on the treadmill', spot: [5.2, 3.4], pose: 'treadmill', belt: true, icon: 'icon-shoe' });
+      s.machine('squat', 'squat-rack', 8.6, 3.4, { label: 'Squats at the squat rack', spot: [8.6, 3.8], pose: 'squat', bar: [0, -24], icon: 'icon-dumbbell' });
+      s.machine('bench', 'bench-press', 11.8, 3.0, { label: 'Bench press', spot: [11.8, 3.4], pose: 'bench', bar: [-1, -14], icon: 'icon-dumbbell' });
+      s.machine('bike', 'bike', 14.2, 4.6, { label: 'Ride the exercise bike', spot: [14.6, 5.0], pose: 'bike', icon: 'icon-shoe' });
       s.machine('dumbbells', 'dumbbell-rack', 12.4, 6.6, { label: 'Curl some dumbbells', spot: [12.4, 7.2], face: 'up', bob: [0.92, 450], icon: 'icon-dumbbell', approach: true });
       s.machine('yoga', 'yoga-mat', 8.4, 6.6, { label: 'Stretch on the mat', spot: [8.4, 6.4], face: 'down', bob: [0.9, 1300], icon: 'gift-heart', flat: true });
       s.add.image(15.1 * T, 2.6 * T, 'water-cooler').setOrigin(0.5, 1).setDepth(2.6 * T);

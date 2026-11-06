@@ -68,21 +68,23 @@ export function makeInteriorArt(scene) {
   ], { k: PAL.stoneDeep, m: PAL.stoneDark, b: PAL.inkDark, B: PAL.stoneDark });
   treadmill('treadmill-0', 0); treadmill('treadmill-1', 1);
   T('squat-rack', 26, 30, [
-    'kk....................kk', 'km....................mk', 'km....................mk', 'km....................mk', 'kmkkkkkkkkkkkkkkkkkkkkmk', 'kkRRkkkkkkkkkkkkkkkkRRkk',
-    'kmRRk................kRRmk'.slice(0, 24), 'kmRRk................kRRm'.slice(0, 24), 'km....................mk', 'km....................mk', 'km....................mk', 'km....................mk',
+    'kk....................kk', 'km....................mk', 'km....................mk', 'km....................mk', 'kmkkkkkkkkkkkkkkkkkkkkmk', 'km....................mk',
+    'kmk..................kmk', 'km....................mk', 'km....................mk', 'km....................mk', 'km....................mk', 'km....................mk',
     'km....................mk', 'km....................mk', 'km....................mk', 'km....................mk', 'km....................mk', 'km....................mk',
     'km....................mk', 'km....................mk', 'km....................mk', 'km....................mk', 'kmkkkkkkkkkkkkkkkkkkkkmk', 'kkkkkkkkkkkkkkkkkkkkkkkk',
   ], { k: PAL.stoneDeep, m: PAL.stoneDark, R: PAL.roseDark });
   T('bench-press', 30, 18, [
-    'kk..........................kk', 'kRk........................kRk', 'kRkkkkkkkkkkkkkkkkkkkkkkkkkkRk', 'kRk........................kRk', 'kk..........................kk',
+    '..............................', '..............................', '..............................', '..............................', '..............................',
     '...kk..................kk.....', '...km..................mk.....', '...km..................mk.....', '...km...kkkkkkkkkkkk...mk.....', '...km..kbbbbbbbbbbbbk..mk.....',
     '...km..kBBBBBBBBBBBBk..mk.....', '...kk..kkkkkkkkkkkkkk..kk.....', '.........k........k...........', '.........k........k...........', '........kkk......kkk..........', '..............................', '..............................', '..............................',
   ], { k: PAL.stoneDeep, m: PAL.stoneDark, R: PAL.roseDark, b: PAL.blueDark, B: PAL.blue });
-  T('bike', 20, 20, [
-    '..kkk...............', '..kmk...............', '...k.......kkkk.....', '...k......kbbbbk....', '...kkkkkkkkkkkkk....', '...k......k.........', '...k......k.........',
-    '..kkk....kkk........', '.kmmmk..kmmmkkkkk...', 'kmk.kmkkmk.kmmmmmk..', 'km...mk.mk..kmmmk...', 'kmk.kmk.kmk.kmmmk...', '.kmmmk...kkkkkkkk...', '..kkk...............',
-    '....................', '....................', '....................', '....................', '....................', '....................',
-  ], { k: PAL.stoneDeep, m: PAL.stoneDark, b: PAL.blueDark });
+  // Stationary bike, facing left: handlebars and flywheel at the front, seat at the back
+  T('bike', 26, 19, [
+    '..........................', '..kkk.....................', '..kmk.....................', '...kk.....................', '....k.........kkkkkk......',
+    '....k.........kbbbbk......', '....k..........kkkk.......', '....k...........km........', '...kkk..........km........', '..kmmmk.........km........',
+    '.kmBBBmk........km........', '.kmBkBmk.......kmmk.......', '.kmBBBmkkkkkkkkkmmk.......', '..kmmmk.......kkmmkk......', '...kkk.........kpk........',
+    '...k............k.........', '.kkkkkkkkkkkkkkkkkkkkkk...', '.kmmmmmmmmmmmmmmmmmmmmk...', '.kkkkkkkkkkkkkkkkkkkkkk...',
+  ], { k: PAL.stoneDeep, m: PAL.stoneDark, b: PAL.blueDark, B: PAL.stone, p: PAL.roseDark });
   T('dumbbell-rack', 30, 14, [
     '.kk.kk.kk.kk.kk.kk.kk.kk.kk.', 'kRkkRkkBkkBkkGkkGkkRkkBkkGk.', '.kk.kk.kk.kk.kk.kk.kk.kk.kk.', 'kkkkkkkkkkkkkkkkkkkkkkkkkkkk', 'kmmmmmmmmmmmmmmmmmmmmmmmmmmk', 'kkkkkkkkkkkkkkkkkkkkkkkkkkkk',
     '.km......................mk.', '.km......................mk.', '.km......................mk.', '.kk......................kk.', '............................', '............................', '............................', '............................',
@@ -96,6 +98,10 @@ export function makeInteriorArt(scene) {
     { k: PAL.stoneDark, b: PAL.blue, B: PAL.blueLight, w: '#fbf4df', r: PAL.roseDark });
   T('computer', 12, 10, ['.kkkkkkkkkk.', '.kbbbbbbbbk.', '.kbgggbbbbk.', '.kbbbbbbbbk.', '.kkkkkkkkkk.', '.....kk.....', '...kkkkkk...', 'kkkkkkkkkkkk', 'kmmmmmmmmmmk', 'kkkkkkkkkkkk'],
     { k: PAL.stoneDeep, b: PAL.blueDark, g: PAL.leafLight, m: PAL.stoneDark });
+
+  T('barbell', 28, 7, [
+    '.kk....................kk.', 'kRRk..................kRRk', 'kRRkkkkkkkkkkkkkkkkkkkkRRk', 'kRRkmmmmmmmmmmmmmmmmmmkRRk', 'kRRkkkkkkkkkkkkkkkkkkkkRRk', 'kRRk..................kRRk', '.kk....................kk.',
+  ], { k: PAL.stoneDeep, m: PAL.stoneLight, R: PAL.roseDark });
 
   // ---------- icons ----------
   T('icon-coin', 9, 9, ['..kkkkk..', '.kyyyyyk.', 'kyYyyyyyk', 'kyyYkYyyk', 'kyyykyyyk', 'kyyYkYyyk', 'kyyyyyyyk', '.kyyyyyk.', '..kkkkk..'], { k: PAL.goldDark, y: PAL.gold, Y: PAL.sun });

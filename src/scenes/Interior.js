@@ -130,6 +130,7 @@ export class Interior extends Phaser.Scene {
     const img = this.add.image(tx * T, ty * T, key).setOrigin(0.5, 1).setDepth(opts.flat ? -5 : ty * T);
     if (!opts.flat) this.colliders.push({ x: tx * T - img.width / 2, y: ty * T - 6, w: img.width, h: 6 });
     const m = { id, key, img, opts, x: opts.spot[0] * T, y: opts.spot[1] * T, busy: null };
+    if (opts.bar) { m.barRest = { x: tx * T + opts.bar[0], y: ty * T + opts.bar[1] }; m.bar = this.add.image(m.barRest.x, m.barRest.y, 'barbell').setDepth(img.depth + 0.5); }
     this.machines[id] = m;
     if (this.world.owner) {
       this.interactables.push({ x: m.x, y: m.y + 10, r: 14, enabled: () => !m.busy, label: () => ({ text: opts.label }), action: () => this.playerDo((a, v) => v.useMachine(a, m, 8)) });
@@ -235,18 +236,60 @@ export class Interior extends Phaser.Scene {
     let belt = null;
     try {
       const o = m.opts;
-      await this.go(a, m.x, m.y);
-      this.face(a, o.face);
+      await this.go(a, m.x, m.y); // step up next to the machine
       this.bubble(a, o.icon);
-      if (o.anim) { a.sprite.play(o.anim, true); a.sprite.anims.timeScale = o.rate || 1; a.inPlace = true; }
-      if (o.bob) this.bob(a, o.bob[0], o.bob[1]);
+      this.startPose(a, m);
       if (o.belt) { let f = 0; belt = this.time.addEvent({ delay: 110, loop: true, callback: () => { f ^= 1; m.img.setTexture(`treadmill-${f}`); } }); }
       await this.wait(sec);
     } finally {
       belt?.remove(); if (m.opts.belt) m.img.setTexture('treadmill-0');
-      a.inPlace = false; a.sprite.anims.timeScale = 1; this.unbob(a); this.clearBubble(a);
+      this.endPose(a, m);
+      this.clearBubble(a);
       m.busy = null;
     }
+  }
+
+  /** Put the character on the machine: running on the belt, on the bike seat, under the bar, on the bench. */
+  startPose(a, m) {
+    const sp = a.sprite, mx = m.img.x, my = m.img.y;
+    const pose = { kind: m.opts.pose, depth: m.img.depth + 1, back: { x: m.x, y: m.y } };
+    a.posed = pose; a.inPlace = true;
+    a.shadow?.setVisible(false);
+    switch (pose.kind) {
+      case 'treadmill': // on the belt, facing the console, running in place
+        sp.setPosition(mx + 3, my - 11); this.face(a, 'left'); sp.play('walk-left', true); sp.anims.timeScale = 1.9; break;
+      case 'bike': // on the seat, pedaling toward the handlebars
+        sp.setPosition(mx + 4, my - 3); this.face(a, 'left'); sp.play('walk-left', true); sp.anims.timeScale = 0.9; break;
+      case 'squat': { // bar on the shoulders, down and up
+        sp.setPosition(mx, my - 5); this.face(a, 'down');
+        pose.shoulder = true;
+        a.tw = this.tweens.add({ targets: sp, scaleY: 0.78, scaleX: 1.08, duration: 650, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        break;
+      }
+      case 'bench': { // lying on the bench, pressing the bar over the chest
+        sp.setOrigin(0.5, 0.5).setAngle(-90);
+        sp.setPosition(mx - 2, my - 11); a.facing = 'down'; sp.play('idle-down', true);
+        m.bar.setPosition(mx - 1, my - 15).setDepth(pose.depth + 1);
+        pose.press = this.tweens.add({ targets: m.bar, y: my - 10, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        break;
+      }
+      default: break;
+    }
+  }
+
+  endPose(a, m) {
+    const pose = a.posed;
+    if (!pose) return;
+    pose.press?.remove();
+    this.unbob(a);
+    const sp = a.sprite;
+    sp.setOrigin(0.5, 32 / 48).setAngle(0).setScale(1);
+    sp.anims.timeScale = 1;
+    if (m.bar) m.bar.setPosition(m.barRest.x, m.barRest.y).setDepth(m.img.depth + 0.5);
+    sp.setPosition(pose.back.x, pose.back.y); // step off
+    a.shadow?.setVisible(true);
+    a.posed = null; a.inPlace = false;
+    this.face(a, 'down');
   }
 
   // ---------- running scripts ----------
@@ -284,6 +327,7 @@ export class Interior extends Phaser.Scene {
   cleanupRun(a, run) {
     for (const i of run.items) i.destroy();
     run.items = [];
+    for (const m of Object.values(this.machines)) if (m.busy === a) { this.endPose(a, m); m.busy = null; }
     this.stand(a); this.unbob(a); this.clearBubble(a); a.inPlace = false; a.sprite.anims.timeScale = 1;
     a.carrying?.destroy(); a.carrying = null;
     for (const s of Object.values(this.staff)) if (s.runRef === run) { s.path = this.route(s.x, s.y, s.home.x, s.home.y); s.onArrive = null; s.onCancel = null; s.runRef = null; this.clearBubble(s); }
@@ -362,6 +406,11 @@ export class Interior extends Phaser.Scene {
       } else if (!a.inPlace && a !== this.playerActor) a.sprite.play(`idle-${a.facing}`, true);
       a.sync();
       if (a.seat) a.sprite.setDepth(a.seat.table.depth - 1);
+      if (a.posed) {
+        a.sprite.setDepth(a.posed.depth);
+        if (a.posed.shoulder) { const m = Object.values(this.machines).find((x) => x.busy === a); if (m?.bar) m.bar.setPosition(a.x, a.y - 14 * a.sprite.scaleY).setDepth(a.posed.depth + 1); }
+        if (a.bubble) a.bubble.setPosition(Math.round(a.x), Math.round(a.y) - (a.posed.kind === 'bench' ? 18 : 30));
+      }
       if (a.carrying) a.carrying.setPosition(a.x, a.y - 22);
     }
     if (this.sam && this.samTag) this.samTag.setPosition(Math.round(this.sam.x), Math.round(this.sam.y) - 22);
