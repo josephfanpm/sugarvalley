@@ -114,7 +114,7 @@ export class Hud extends Phaser.Scene {
     // Bottom-left buttons: mute, settings (owner)
     this.muteBtn = this.panel(14, 14).setOrigin(0, 1).setInteractive({ useHandCursor: true });
     this.muteText = this.text(8).setOrigin(0.5);
-    const mute = () => { unlockAudio(); setMuted(!isMuted()); this.setText(this.muteText, isMuted() ? '×' : '♪'); };
+    const mute = () => { unlockAudio(); setMuted(!isMuted()); this.sound.mute = isMuted(); this.setText(this.muteText, isMuted() ? '×' : '♪'); };
     this.muteBtn.on('pointerdown', () => { mute(); sfx.blip(); });
     this.setText(this.muteText, '♪');
     this.input.keyboard.on('keydown-M', mute);

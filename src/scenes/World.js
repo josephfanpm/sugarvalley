@@ -8,6 +8,7 @@ import { RESTORE_BY_ID, nextRestorable, CHORES, suggestRecipe, ITEMS } from '../
 import { registerFrames, buildFarm, refreshFarmVisuals, SPOTS, ITEM_ICON } from '../world/farm.js';
 import { Actor, Autopilot } from '../world/autopilot.js';
 import { sfx, unlockAudio, ambience, music } from '../audio.js';
+import { Music } from '../music.js';
 import { loadView, act } from '../net.js';
 import { liveState, isUrgent } from '../data/cgm.js';
 
@@ -117,6 +118,7 @@ export class World extends Phaser.Scene {
     this.events.once('shutdown', () => this.game.events.off('hud-interact', undefined, this));
 
     this.scene.launch('Hud');
+    this.music = new Music(this); // loads in the background
     this.time.delayedCall(50, () => this.emitStatus());
     this.game.events.on('farm-action', (a) => this.handleHudAction(a), this);
     this.events.once('shutdown', () => this.game.events.off('farm-action', undefined, this));
@@ -1073,7 +1075,7 @@ export class World extends Phaser.Scene {
     }
     this.ambT = (this.ambT || 0) + dt;
     if (this.ambT > 0.25) { ambience(this.night, this.ambT); this.ambT = 0; }
-    music(dt);
+    if (this.music.useFallback) music(dt); else this.music.update(this.hourNow());
   }
 }
 

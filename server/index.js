@@ -17,8 +17,8 @@ import { valleyView, collect, restore, water, gift, chore, cook, journal, claim,
 import { authConfig, verifyIdToken, AuthError } from './auth.js';
 
 const SPARK_MS = 12 * 3_600_000; // graph history sent to the app and share link
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json' };
-const STATIC = { '/app/': path.join(ROOT, 'extension'), '/sprites/': path.join(ROOT, 'extension', 'sprites'), '/shared/': path.join(ROOT, 'extension', 'shared'), '/web/': path.join(ROOT, 'web'), '/game/': path.join(ROOT, 'src'), '/art/': path.join(ROOT, 'assets', 'art') };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json', '.ogg': 'audio/ogg', '.mp3': 'audio/mpeg' };
+const STATIC = { '/app/': path.join(ROOT, 'extension'), '/sprites/': path.join(ROOT, 'extension', 'sprites'), '/shared/': path.join(ROOT, 'extension', 'shared'), '/web/': path.join(ROOT, 'web'), '/game/': path.join(ROOT, 'src'), '/art/': path.join(ROOT, 'assets', 'art'), '/audio/': path.join(ROOT, 'assets', 'audio') };
 
 // ---------- helpers ----------
 class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }

@@ -46,18 +46,25 @@ function noise(dur, { at = 0, vol = 0.2, freq = 1200, q = 0.8, bus = sfxBus } = 
 }
 
 const NOTE = (n) => 440 * 2 ** ((n - 69) / 12);
+
+// Recorded CC0 sounds (Kenney) when the game has loaded them; synthesized otherwise.
+let sampler = null;
+export function setSampler(fn) { sampler = fn; }
+const sample = (key, vol = 0.5) => !muted && !!sampler && sampler(key, vol);
 export const sfx = {
   step(alt) { noise(0.06, { vol: 0.12, freq: alt ? 900 : 700, q: 1.2 }); },
-  blip() { tone(NOTE(84), { dur: 0.08, vol: 0.12, type: 'square' }); },
-  open() { tone(NOTE(76), { dur: 0.12, vol: 0.14 }); tone(NOTE(83), { at: 0.06, dur: 0.16, vol: 0.12 }); },
-  deny() { tone(NOTE(60), { dur: 0.18, vol: 0.14, type: 'square', slide: 0.8 }); },
-  collect() { [79, 83, 86, 91].forEach((n, i) => tone(NOTE(n), { at: i * 0.05, dur: 0.25, vol: 0.13 })); },
+  blip() { if (!sample('ui-click', 0.4)) tone(NOTE(84), { dur: 0.08, vol: 0.12, type: 'square' }); },
+  open() { if (!sample('ui-open', 0.45)) { tone(NOTE(76), { dur: 0.12, vol: 0.14 }); tone(NOTE(83), { at: 0.06, dur: 0.16, vol: 0.12 }); } },
+  deny() { if (!sample('ui-error', 0.4)) tone(NOTE(60), { dur: 0.18, vol: 0.14, type: 'square', slide: 0.8 }); },
+  collect() { sample('sparkle', 0.35); [79, 83, 86, 91].forEach((n, i) => tone(NOTE(n), { at: i * 0.05, dur: 0.25, vol: 0.13 })); },
   restore() {
     [60, 64, 67, 72, 76, 79, 84].forEach((n, i) => tone(NOTE(n), { at: i * 0.07, dur: 0.6, vol: 0.14 }));
     tone(NOTE(48), { dur: 1.2, vol: 0.12, type: 'sine' });
     noise(0.8, { at: 0.1, vol: 0.06, freq: 6000, q: 0.5 });
   },
   water() { for (let i = 0; i < 6; i++) noise(0.09, { at: i * 0.08, vol: 0.08, freq: 2500 + Math.random() * 1500, q: 2 }); },
+  pickup() { if (!sample('item-pluck', 0.5)) tone(NOTE(84), { dur: 0.1, vol: 0.1, slide: 1.3 }); },
+  confirm() { if (!sample('ui-confirm', 0.45)) tone(NOTE(79), { dur: 0.15, vol: 0.12 }); },
   eggs() { [0, 0.1, 0.2].forEach((at, i) => tone(NOTE(79 + i * 3), { at, dur: 0.09, vol: 0.12, type: 'sine', slide: 1.4 })); },
   milk() { for (let i = 0; i < 5; i++) noise(0.12, { at: i * 0.07, vol: 0.06, freq: 900 + i * 120, q: 4 }); tone(NOTE(72), { at: 0.3, dur: 0.2, vol: 0.08, type: 'sine' }); },
   harvest() { noise(0.25, { vol: 0.1, freq: 3200, q: 0.7 }); tone(NOTE(76), { at: 0.15, dur: 0.15, vol: 0.1 }); tone(NOTE(81), { at: 0.25, dur: 0.2, vol: 0.1 }); },
