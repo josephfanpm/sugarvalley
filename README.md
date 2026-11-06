@@ -94,6 +94,9 @@ to an owner key to sign in first.
 - **Maple's weekly goal:** built from your weakest time of day over the last two weeks.
 - **Garden Journal:** tag what happened on a day; insights show which tags line up with better days.
 - **Comebacks, steady streaks, morning recap:** see [design/gdd/quests-journal.md](design/gdd/quests-journal.md).
+- **Buildings:** every building can be entered. Order and pay at The Sunny Cup and the bakery, get
+  seated and served at Valley Kitchen, check in and use the treadmill, squat rack, bench press, bike
+  and dumbbells at the gym. Your character does this on its own when low or high.
 - **Cottage:** walk in through the door. Ribbons from weekly goals hang on the wall and every recipe
   you've cooked sits on the table. Visitors can come in too.
 - **Town:** down Main Street: coffee shop, bakery, restaurant, market, fountain plaza, gym, running

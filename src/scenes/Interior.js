@@ -1,131 +1,279 @@
-// Inside the cottage: a cozy room that fills up with what you've earned. Ribbons from Maple's weekly
-// goals hang on the wall; every recipe you've cooked sits on the table. Owners and visitors can come in.
+// Inside a building. One scene for all of them: the room and fixtures come from world/buildings.js.
+// The owner's character can be driven by a script (walked in automatically, went idle inside, or the
+// player asked: "Order a hot cocoa"). Any movement takes control back. Visitors who walk in on Sam
+// see Sam's visit play out.
 import { canvasTexture } from '../world/pixels.js';
 import { PAL, hex } from '../data/palette.js';
-import { RECIPES } from '../data/valley-rules.js';
+import { BUILDINGS, registerFurniture } from '../world/buildings.js';
+import { Actor } from '../world/autopilot.js';
 import { sfx, unlockAudio } from '../audio.js';
 
-const T = 16, RW = 12, RH = 8; // room in tiles (walls included)
+const T = 16;
 const SPEED = 60;
-const FURN = {
-  bed: [1, 26, 14, 22], dresser: [49, 32, 14, 16], table: [49, 49, 14, 14], smallTable: [67, 51, 10, 9],
-  chairR: [67, 33, 10, 13], chairL: [83, 33, 10, 13], armchair: [99, 33, 10, 13], clock: [81, 48, 13, 15],
-  lampG: [51, 16, 10, 11], plantBig: [51, 0, 11, 15], plantSmall: [84, 1, 7, 12],
-  pic1: [1, 6, 15, 7], pic2: [19, 6, 11, 7], pic3: [35, 5, 12, 8], rug: [52, 82, 24, 13],
-};
+const IDLE_BEFORE_AUTO = 7;
+const CANCEL = Symbol('cancel');
+const PURPOSE = { coffee: 'low', bakery: 'low', restaurant: 'low', gym: 'high' };
 
 export class Interior extends Phaser.Scene {
   constructor() { super('Interior'); }
 
+  init(data) { this.id = data.building || 'cottage'; this.autoEnter = !!data.auto; }
+
   create() {
     this.world = this.scene.get('World');
     this.view = this.world.view;
-    const fur = this.textures.get('furniture');
-    for (const [k, [x, y, w, h]] of Object.entries(FURN)) if (!fur.has(k)) fur.add(k, 0, x, y, w, h);
-    this.colliders = [];
-    this.interactables = [];
+    this.cfg = BUILDINGS[this.id];
+    this.RW = this.cfg.w; this.RH = this.cfg.h;
+    this.colliders = []; this.interactables = []; this.seats = []; this.staff = {}; this.machines = {}; this.lights = [];
+    this.actors = [];
+    this.dead = false; this.leaving = false; this.idle = 0; this.playerRun = null;
+    registerFurniture(this);
     this.buildRoom();
-    this.buildFurniture();
-    this.buildTrophies();
+    this.cfg.build(this);
+    for (const l of this.lights) this.add.image(l.x, l.y, 'light').setScale(0.6).setTint(hex(PAL.gold)).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD).setDepth(5001);
     this.buildPlayer();
 
     const cam = this.cameras.main;
     cam.setBackgroundColor('#1d1e2e');
     this.fit();
     this.scale.on('resize', this.fit, this);
-    this.events.once('shutdown', () => this.scale.off('resize', this.fit, this));
+    this.events.once('shutdown', () => { this.dead = true; this.scale.off('resize', this.fit, this); });
     cam.fadeIn(350, 20, 16, 30);
 
     this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,E,SPACE,ENTER');
     for (const k of ['E', 'SPACE', 'ENTER']) this.keys[k].on('down', () => this.interact());
-    this.input.on('pointerdown', (p) => { unlockAudio(); if (p.event?.target?.tagName === 'CANVAS') this.moveTarget = { x: p.worldX, y: p.worldY }; });
+    this.input.on('pointerdown', (p) => { unlockAudio(); if (p.event?.target?.tagName === 'CANVAS') { this.takeControl(); this.moveTarget = { x: p.worldX, y: p.worldY }; } });
     this.onHudInteract = () => this.interact();
     this.game.events.on('hud-interact', this.onHudInteract);
     this.events.once('shutdown', () => this.game.events.off('hud-interact', this.onHudInteract));
+    if (this.id !== 'cottage') this.game.events.emit('toast', this.cfg.name);
+
+    if (!this.world.owner && this.world.samInside === this.id) this.spawnSam();
+    if (this.autoEnter && this.cfg.script) this.time.delayedCall(400, () => this.runPlayerScript({ auto: true }));
   }
 
   fit() {
     const { width, height } = this.scale;
-    const z = Math.max(2, Math.floor(Math.min(width / (RW * T + 40), height / (RH * T + 110))));
-    const cam = this.cameras.main;
-    cam.setZoom(z);
-    cam.centerOn((RW * T) / 2, (RH * T) / 2 - 16); // sit below the top HUD
+    const z = Math.max(2, Math.floor(Math.min(width / (this.RW * T + 40), height / (this.RH * T + 110))));
+    this.cameras.main.setZoom(z);
+    this.cameras.main.centerOn((this.RW * T) / 2, (this.RH * T) / 2 - 16);
   }
 
+  // ---------- room and fixtures (used by buildings.js) ----------
   buildRoom() {
     const walls = this.textures.get('house-walls').getSourceImage();
-    canvasTexture(this, 'room', RW * T, RH * T, (c) => {
+    const { RW, RH } = this;
+    const door = Math.floor(RW / 2) - 1;
+    canvasTexture(this, `room-${this.id}`, RW * T, RH * T, (c) => {
       for (let y = 0; y < RH; y++) for (let x = 0; x < RW; x++) {
         const row = y === 0 ? 0 : y === RH - 1 ? 2 : 1, col = x === 0 ? 0 : x === RW - 1 ? 2 : 1;
         const i = row * 5 + col;
         c.drawImage(walls, (i % 5) * T, Math.floor(i / 5) * T, T, T, x * T, y * T, T, T);
       }
-      // doorway in the bottom wall
-      c.fillStyle = PAL.woodDark; c.fillRect(5 * T + 2, (RH - 1) * T, 2 * T - 4, T);
-      c.fillStyle = '#e8cfa6'; c.fillRect(5 * T + 4, (RH - 1) * T, 2 * T - 8, 6);
+      c.fillStyle = PAL.woodDark; c.fillRect(door * T + 2, (RH - 1) * T, 2 * T - 4, T);
+      c.fillStyle = '#e8cfa6'; c.fillRect(door * T + 4, (RH - 1) * T, 2 * T - 8, 6);
     });
-    this.add.image(0, 0, 'room').setOrigin(0).setDepth(-10);
-    // Walls block; the doorway is the exit
-    const top = 22, left = 6, right = RW * T - 6, bottom = (RH - 1) * T + 2;
-    this.bounds = { top, left, right, bottom };
-    this.door = { x: 6 * T, y: (RH - 1) * T + 6 };
+    this.add.image(0, 0, `room-${this.id}`).setOrigin(0).setDepth(-10).setTint(this.cfg.tint);
+    if (this.cfg.rug) this.add.image((RW * T) / 2, (RH * T) / 2 + 12, 'furniture', this.cfg.rug).setScale(2.4, 2).setDepth(-6).setAlpha(0.9);
+    this.bounds = { top: 22, left: 6, right: RW * T - 6, bottom: (RH - 1) * T + 2 };
+    this.door = { x: (door + 1) * T, y: (RH - 1) * T + 6 };
     this.interactables.push({ x: this.door.x, y: this.door.y - 6, r: 16, label: () => ({ text: 'Go outside' }), action: () => this.leave() });
-    // warm light pool
-    this.add.image(RW * T / 2, RH * T / 2, 'light').setScale(2.4, 1.6).setTint(hex(PAL.gold)).setAlpha(0.18).setBlendMode(Phaser.BlendModes.ADD).setDepth(5000);
+    this.add.image((RW * T) / 2, (RH * T) / 2, 'light').setScale(RW / 5, RH / 5).setTint(hex(PAL.gold)).setAlpha(0.16).setBlendMode(Phaser.BlendModes.ADD).setDepth(5000);
   }
 
-  piece(frame, x, y, { collide = true, wall = false } = {}) {
-    const img = this.add.image(x, y, 'furniture', frame).setOrigin(0.5, 1).setDepth(wall ? -5 : y);
-    if (collide) { const [, , w] = FURN[frame]; this.colliders.push({ x: x - w / 2, y: y - 6, w, h: 6 }); }
+  piece(frame, tx, ty, { wall = false } = {}) {
+    const img = this.add.image(tx * T, ty * T, 'furniture', frame).setOrigin(0.5, 1).setDepth(wall ? -5 : ty * T);
+    if (!wall) { const w = img.width; this.colliders.push({ x: tx * T - w / 2, y: ty * T - 6, w, h: 6 }); }
     return img;
   }
 
-  buildFurniture() {
-    this.add.image(6 * T, 5.2 * T, 'furniture', 'rug').setScale(2, 2).setDepth(-6);
-    this.piece('bed', 1.6 * T, 3.4 * T);
-    this.piece('dresser', 3.2 * T, 2.4 * T);
-    this.piece('lampG', 4.3 * T, 2.3 * T);
-    this.piece('plantBig', 10.4 * T, 2.4 * T);
-    this.piece('plantSmall', 1.2 * T, 6.6 * T);
-    this.piece('armchair', 10.2 * T, 6.4 * T);
-    this.piece('clock', 8.8 * T, 1.45 * T, { collide: false, wall: true });
-    this.piece('pic1', 5.4 * T, 1.2 * T, { collide: false, wall: true });
-    this.piece('pic3', 6.7 * T, 1.25 * T, { collide: false, wall: true });
-    // dining table (two tables pushed together) with chairs
-    this.tableAt = { x: 7.5 * T, y: 4.6 * T };
-    this.piece('table', 7 * T, 4.6 * T);
-    this.piece('table', 7.875 * T, 4.6 * T);
-    this.piece('chairR', 5.9 * T, 4.7 * T);
-    this.piece('chairL', 9 * T, 4.7 * T);
-    // bed and dresser interactions
-    this.interactables.push({ x: 1.6 * T, y: 3.6 * T, r: 16, label: () => ({ text: this.world.owner ? 'Rest a moment' : `${this.view.name}'s bed` }), action: this.world.owner ? () => this.rest() : null });
-    if (this.world.owner) this.interactables.push({ x: 3.2 * T, y: 2.7 * T, r: 14, label: () => ({ text: 'Open the Garden Journal' }), action: () => this.game.events.emit('open-journal') });
+  wallItem(key, tx, ty, furniture = false) {
+    return (furniture ? this.add.image(tx * T, ty * T, 'furniture', key) : this.add.image(tx * T, ty * T, key)).setOrigin(0.5, 1).setDepth(-5);
   }
 
-  buildTrophies() {
-    // Ribbons on the back wall
-    const ribbons = Math.min(10, this.view.valley.ribbons || 0);
-    for (let i = 0; i < ribbons; i++) this.add.image((1.4 + i * 0.5) * T + (i > 4 ? 0.5 * T : 0), 0.95 * T + (i % 2) * 3, 'ribbon').setDepth(-4);
-    // Every recipe cooked sits on the table
-    const book = this.view.farm?.cookbook || {};
-    const cooked = RECIPES.filter((r) => book[r.id]);
-    cooked.forEach((r, i) => {
-      const x = this.tableAt.x - 9 + (i % 4) * 7, y = this.tableAt.y - 8 - Math.floor(i / 4) * 5;
-      this.add.image(x, y, `dish-${r.id}`).setOrigin(0.5, 1).setDepth(this.tableAt.y + 1 + i);
-    });
+  counterBar(key, tx, ty) {
+    const img = this.add.image(tx * T, ty * T, key).setOrigin(0.5, 1).setDepth(ty * T);
+    this.colliders.push({ x: tx * T - img.width / 2, y: ty * T - 12, w: img.width, h: 12 });
+    return img;
+  }
+
+  table(tx, ty, key = 'table') {
+    const img = key === 'table' ? this.add.image(tx * T, ty * T, 'furniture', 'table') : this.add.image(tx * T, ty * T, key);
+    img.setOrigin(0.5, 1).setDepth(ty * T);
+    this.add.image(tx * T, ty * T - 6, 'furniture', 'armchair').setOrigin(0.5, 1).setDepth(ty * T - 12).setScale(0.9);
+    this.colliders.push({ x: tx * T - img.width / 2, y: ty * T - 8, w: img.width, h: 8 });
+    this.seats.push({ x: tx * T, y: ty * T - 9, table: { x: tx * T, y: ty * T, depth: ty * T }, taken: null });
+    return img;
+  }
+
+  staffAt(id, tx, ty, tint, lines, { behindWall = false } = {}) {
+    const sp = this.add.sprite(tx * T, ty * T, 'player').setOrigin(0.5, 32 / 48).setTint(hex(tint));
+    sp.play('idle-down');
+    const act = new Actor(this, sp, behindWall ? null : this.add.image(0, 0, 'shadow').setDepth(-4).setScale(0.8, 0.9));
+    act.home = { x: sp.x, y: sp.y };
+    this.staff[id] = act;
+    this.actors.push(act);
+    let said = 0;
     this.interactables.push({
-      x: this.tableAt.x, y: this.tableAt.y + 4, r: 18,
-      label: () => ({ text: cooked.length ? `Cookbook · ${cooked.length} of ${RECIPES.length} recipes: ${cooked.map((r) => r.name.toLowerCase()).join(', ')}` : 'Dishes you cook will show up here' }),
+      x: 0, y: 0, r: 14, follow: sp,
+      label: () => ({ text: `Chat with the ${id}` }),
+      action: () => { this.bubble(act, 'icon-chat'); sfx.open(); this.game.events.emit('toast', `${lines[said++ % lines.length]}`); this.time.delayedCall(2500, () => this.clearBubble(act)); },
     });
-    if (ribbons) this.interactables.push({ x: 2.6 * T, y: 1.9 * T, r: 18, label: () => ({ text: `${ribbons} ribbon${ribbons > 1 ? 's' : ''} from Maple's weekly goals` }) });
+    return act;
   }
 
+  machine(id, key, tx, ty, opts) {
+    const img = this.add.image(tx * T, ty * T, key).setOrigin(0.5, 1).setDepth(opts.flat ? -5 : ty * T);
+    if (!opts.flat) this.colliders.push({ x: tx * T - img.width / 2, y: ty * T - 6, w: img.width, h: 6 });
+    const m = { id, key, img, opts, x: opts.spot[0] * T, y: opts.spot[1] * T, busy: null };
+    this.machines[id] = m;
+    if (this.world.owner) {
+      this.interactables.push({ x: m.x, y: m.y + 10, r: 14, enabled: () => !m.busy, label: () => ({ text: opts.label }), action: () => this.playerDo((a, v) => v.useMachine(a, m, 8)) });
+    }
+    return m;
+  }
+
+  // ---------- script helpers (called through a per-run view, so one run can be cancelled alone) ----------
+  check() { if (this.dead || this.run?.cancelled) throw CANCEL; }
+
+  wait(sec) {
+    return new Promise((res, rej) => this.time.delayedCall(sec * 1000, () => ((this.dead || this.run?.cancelled) ? rej(CANCEL) : res())));
+  }
+
+  go(a, x, y, speed = 1) {
+    this.check();
+    return new Promise((res, rej) => { a.path = [{ x, y }]; a.speed = speed; a.onArrive = res; a.onCancel = rej; a.runRef = this.run; });
+  }
+
+  face(a, dir) { a.facing = dir; a.sprite.play(`idle-${dir}`, true); }
+  faceStaff(staff, a) { staff.faceToward(a.x, a.y); staff.sprite.play(`idle-${staff.facing}`, true); }
+  bubble(a, key, frame) { a.bubbleIcon(key, frame); }
+  clearBubble(a) { a.clearBubble(); }
+
+  place(key, x, y, depth = 50000, frame) {
+    const img = this.add.image(x, y, key, frame).setOrigin(0.5, 1).setDepth(depth);
+    this.run?.items.push(img);
+    return img;
+  }
+
+  carry(a, key) {
+    const img = this.add.image(a.x, a.y - 20, key).setDepth(60000);
+    a.carrying = img;
+    this.run?.items.push(img);
+    return { destroy: () => { img.destroy(); a.carrying = null; } };
+  }
+
+  sit(a, seat) { a.sprite.setPosition(seat.x, seat.y); a.seat = seat; this.face(a, 'down'); }
+  stand(a) { if (a.seat) { a.seat.taken = null; a.sprite.setPosition(a.seat.table.x - 16, a.seat.y); a.seat = null; } }
+
+  bob(a, scaleY = 0.9, ms = 400) {
+    this.unbob(a);
+    a.tw = this.tweens.add({ targets: a.sprite, scaleY, scaleX: 1 + (1 - scaleY) * 0.6, duration: ms, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+  unbob(a) { if (a.tw) { a.tw.remove(); a.tw = null; a.sprite.setScale(1); } }
+
+  freeSeat(a) {
+    const open = this.seats.filter((s) => !s.taken);
+    const seat = open[Math.floor(Math.random() * open.length)] || this.seats[0];
+    seat.taken = a;
+    return seat;
+  }
+
+  shuffle(arr) { return arr.map((v) => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(([, v]) => v); }
+
+  async useMachine(a, m, sec) {
+    m.busy = a;
+    let belt = null;
+    try {
+      const o = m.opts;
+      await this.go(a, m.x, m.y);
+      this.face(a, o.face);
+      this.bubble(a, o.icon);
+      if (o.anim) { a.sprite.play(o.anim, true); a.sprite.anims.timeScale = o.rate || 1; a.inPlace = true; }
+      if (o.bob) this.bob(a, o.bob[0], o.bob[1]);
+      if (o.belt) { let f = 0; belt = this.time.addEvent({ delay: 110, loop: true, callback: () => { f ^= 1; m.img.setTexture(`treadmill-${f}`); } }); }
+      await this.wait(sec);
+    } finally {
+      belt?.remove(); if (m.opts.belt) m.img.setTexture('treadmill-0');
+      a.inPlace = false; a.sprite.anims.timeScale = 1; this.unbob(a); this.clearBubble(a);
+      m.busy = null;
+    }
+  }
+
+  // ---------- running scripts ----------
+  runView(run) { const v = Object.create(this); v.run = run; return v; }
+
+  keepGoingFor(start) {
+    const purpose = PURPOSE[this.id];
+    const st = () => this.world.view.state;
+    return () => {
+      if (this.dead) return false;
+      if (st() === 'urgent_low' || st() === 'urgent_high') return false;
+      if (purpose && st() === purpose) return true; // stay until back in range
+      return this.time.now - start < 14000; // otherwise a short visit
+    };
+  }
+
+  runPlayerScript({ auto = false } = {}) {
+    if (!this.cfg.script || this.playerRun) return;
+    this.playerDo((a, v) => this.cfg.script(v, a, { keepGoing: this.keepGoingFor(this.time.now) }), { leaveAfter: auto });
+  }
+
+  playerVisit() { this.runPlayerScript({ auto: false }); }
+
+  async playerDo(fn, { leaveAfter = false } = {}) {
+    if (this.playerRun) return;
+    const run = { cancelled: false, items: [] };
+    this.playerRun = run;
+    const a = this.playerActor;
+    try { await fn(a, this.runView(run)); } catch (e) { if (e !== CANCEL) console.error(e); }
+    this.cleanupRun(a, run);
+    if (this.playerRun === run) this.playerRun = null;
+    if (leaveAfter && !run.cancelled && !this.dead) this.leave(true);
+  }
+
+  cleanupRun(a, run) {
+    for (const i of run.items) i.destroy();
+    run.items = [];
+    this.stand(a); this.unbob(a); this.clearBubble(a); a.inPlace = false; a.sprite.anims.timeScale = 1;
+    a.carrying?.destroy(); a.carrying = null;
+    for (const s of Object.values(this.staff)) if (s.runRef === run) { s.path = [{ ...s.home }]; s.onArrive = null; s.onCancel = null; s.runRef = null; this.clearBubble(s); }
+  }
+
+  takeControl() {
+    this.idle = 0;
+    const run = this.playerRun;
+    if (!run) return;
+    run.cancelled = true;
+    for (const act of this.actors) if (act.runRef === run && act.onCancel) { const c = act.onCancel; act.path = null; act.onArrive = null; act.onCancel = null; c(CANCEL); }
+    this.world.piloting = false;
+  }
+
+  // Visitors walking in on Sam
+  spawnSam() {
+    const sp = this.add.sprite(this.door.x, this.door.y - 12, 'player').setOrigin(0.5, 32 / 48);
+    const act = new Actor(this, sp, this.add.image(0, 0, 'shadow').setDepth(-4).setScale(0.8, 0.9));
+    this.samTag = this.add.text(0, 0, this.view.name, { fontFamily: '"Pixelify Sans"', fontSize: '8px', color: '#f3e5c2', stroke: '#645552', strokeThickness: 2, resolution: 4 }).setOrigin(0.5, 1).setDepth(100004);
+    this.sam = act;
+    this.actors.push(act);
+    const run = { cancelled: false, items: [] };
+    (async () => {
+      try { await this.cfg.script(this.runView(run), act, { keepGoing: this.keepGoingFor(this.time.now) }); } catch (e) { if (e !== CANCEL) console.error(e); }
+      if (this.dead) return;
+      this.cleanupRun(act, run);
+      try { await this.runView(run).go(act, this.door.x, this.door.y); } catch { /* scene closed */ }
+      if (!this.dead) { sp.setVisible(false); act.shadow?.setVisible(false); this.samTag.setVisible(false); }
+    })();
+  }
+
+  // ---------- player ----------
   buildPlayer() {
     this.player = this.add.sprite(this.door.x, this.door.y - 10, 'player').setOrigin(0.5, 32 / 48);
     if (!this.world.owner) this.player.setTint(hex(PAL.blueLight));
-    this.shadow = this.add.image(0, 0, 'shadow').setDepth(-3).setScale(0.8, 0.9);
-    this.facing = 'up';
+    this.playerActor = new Actor(this, this.player, this.add.image(0, 0, 'shadow').setDepth(-3).setScale(0.8, 0.9));
+    this.playerActor.facing = 'up';
     this.player.play('idle-up');
+    this.actors.push(this.playerActor);
   }
 
   blocked(x, y) {
@@ -137,30 +285,44 @@ export class Interior extends Phaser.Scene {
 
   update(time, deltaMs) {
     const dt = Math.min(0.05, deltaMs / 1000);
-    const p = this.player;
-    if (!this.busy && !this.world.inputLocked) {
+    for (const a of this.actors) {
+      if (a.path?.length) {
+        a.walk(dt, a.speed || 1);
+        if (!a.path.length) { const f = a.onArrive; a.onArrive = null; a.onCancel = null; a.sprite.play(`idle-${a.facing}`, true); f?.(); }
+      } else if (!a.inPlace && a !== this.playerActor) a.sprite.play(`idle-${a.facing}`, true);
+      a.sync();
+      if (a.seat) a.sprite.setDepth(a.seat.table.depth - 1);
+      if (a.carrying) a.carrying.setPosition(a.x, a.y - 22);
+    }
+    if (this.sam && this.samTag) this.samTag.setPosition(Math.round(this.sam.x), Math.round(this.sam.y) - 22);
+
+    const p = this.player, pa = this.playerActor;
+    if (!this.leaving && !this.world.inputLocked) {
       const k = this.keys;
       let vx = (k.D.isDown || k.RIGHT.isDown ? 1 : 0) - (k.A.isDown || k.LEFT.isDown ? 1 : 0);
       let vy = (k.S.isDown || k.DOWN.isDown ? 1 : 0) - (k.W.isDown || k.UP.isDown ? 1 : 0);
-      if (vx || vy) this.moveTarget = null;
-      else if (this.moveTarget) { const dx = this.moveTarget.x - p.x, dy = this.moveTarget.y - p.y; if (Math.hypot(dx, dy) < 3) this.moveTarget = null; else { vx = dx; vy = dy; } }
+      if (vx || vy) { this.takeControl(); this.moveTarget = null; }
+      else if (this.moveTarget && !this.playerRun) { const dx = this.moveTarget.x - p.x, dy = this.moveTarget.y - p.y; if (Math.hypot(dx, dy) < 3) this.moveTarget = null; else { vx = dx; vy = dy; } }
       const len = Math.hypot(vx, vy);
-      if (len) {
+      if (len && !this.playerRun) {
         vx /= len; vy /= len;
         const nx = p.x + vx * SPEED * dt, ny = p.y + vy * SPEED * dt;
         let moved = false;
         if (!this.blocked(nx, p.y)) { p.x = nx; moved = true; }
         if (!this.blocked(p.x, ny)) { p.y = ny; moved = true; }
         if (!moved) this.moveTarget = null;
-        this.facing = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : (vy > 0 ? 'down' : 'up');
-        p.play(`walk-${this.facing}`, true);
+        pa.facing = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : (vy > 0 ? 'down' : 'up');
+        p.play(`walk-${pa.facing}`, true);
         if ((this.step = (this.step || 0) - dt) <= 0) { this.step = 0.3; sfx.step(Math.random() < 0.5); }
-      } else p.play(`idle-${this.facing}`, true);
-      if (p.y > this.bounds.bottom + 6) this.leave();
+        if (p.y > this.bounds.bottom + 6) this.leave();
+      } else if (!this.playerRun && !pa.path?.length) {
+        p.play(`idle-${pa.facing}`, true);
+        // Idle inside: the character does what people do here
+        if (this.world.owner && this.cfg.script && (this.idle += dt) > IDLE_BEFORE_AUTO) { this.idle = 0; this.runPlayerScript({ auto: true }); }
+      }
     }
-    p.setDepth(p.y);
-    this.shadow.setPosition(Math.round(p.x), Math.round(p.y) + 1);
-    const it = this.nearest();
+
+    const it = this.playerRun ? null : this.nearest();
     if (it !== this.lastNear || (it && (this.tick = (this.tick || 0) + dt) > 0.5)) {
       this.tick = 0; this.lastNear = it;
       this.game.events.emit('prompt', it ? { ...it.label(), action: !!it.action } : null);
@@ -170,38 +332,43 @@ export class Interior extends Phaser.Scene {
   nearest() {
     let best = null, bd = Infinity;
     for (const it of this.interactables) {
-      const d = Math.hypot(it.x - this.player.x, it.y - this.player.y);
+      if (it.enabled && !it.enabled()) continue;
+      const ix = it.follow ? it.follow.x : it.x, iy = it.follow ? it.follow.y : it.y;
+      const d = Math.hypot(ix - this.player.x, iy - this.player.y);
       if (d < it.r + 8 && d < bd) { best = it; bd = d; }
     }
     return best;
   }
 
   interact() {
-    if (this.world.inputLocked || this.busy) return;
+    if (this.world.inputLocked || this.leaving || this.playerRun) return;
+    this.idle = 0;
     this.nearest()?.action?.();
   }
 
   rest() {
-    this.busy = true;
+    if (this.resting) return;
+    this.resting = true;
     sfx.open();
     this.cameras.main.fadeOut(500, 20, 16, 30);
     this.time.delayedCall(900, () => {
       this.cameras.main.fadeIn(600, 20, 16, 30);
-      this.busy = false;
+      this.resting = false;
       this.game.events.emit('toast', 'A little rest. The valley is still growing while you\'re away.');
     });
   }
 
-  leave() {
+  async leave(walkOut = false) {
     if (this.leaving) return;
     this.leaving = true;
+    if (walkOut) { try { await this.runView({ cancelled: false, items: [] }).go(this.playerActor, this.door.x, this.door.y + 4); } catch { /* closing */ } }
     sfx.open();
     this.game.events.emit('prompt', null);
     this.cameras.main.fadeOut(250, 20, 16, 30);
     this.time.delayedCall(260, () => {
       this.scene.stop();
       this.scene.wake('World');
-      this.world.exitedCottage();
+      this.world.exitedBuilding(this.id, { auto: walkOut });
     });
   }
 }

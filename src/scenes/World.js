@@ -422,7 +422,7 @@ export class World extends Phaser.Scene {
     this.interactables.push({
       x, y: bottom + 6, r: 12,
       label: () => ({ text: this.owner ? 'Go inside' : `Visit ${this.view.name}'s cottage` }),
-      action: () => this.enterCottage(),
+      action: () => this.enterBuilding('cottage'),
     });
     this.colliders.push({ x: x + 46, y: bottom, w: 12, h: 5 });
   }
@@ -1005,27 +1005,46 @@ export class World extends Phaser.Scene {
   }
 
   // ---------- cottage interior ----------
-  enterCottage() {
-    if (this.inCottage) return;
-    this.inCottage = true;
+  /** Go inside a building (cottage, coffee, bakery, restaurant, gym). auto: the character walked in on their own. */
+  enterBuilding(id, { auto = false } = {}) {
+    if (this.inside) return;
+    this.inside = id;
     sfx.open();
     this.game.events.emit('prompt', null);
     this.cameras.main.fadeOut(250, 20, 16, 30);
     this.time.delayedCall(260, () => {
       this.scene.sleep();
-      this.scene.launch('Interior');
+      this.scene.launch('Interior', { building: id, auto });
       this.scene.bringToTop('Hud');
     });
   }
 
-  exitedCottage() {
-    this.inCottage = false;
-    this.player.setPosition(this.cottageDoor.x, this.cottageDoor.y + 10);
+  doorOf(id) { return id === 'cottage' ? this.cottageDoor : this.town.spots[id]; }
+
+  exitedBuilding(id, { auto = false } = {}) {
+    this.inside = null;
+    const d = this.doorOf(id);
+    this.player.setPosition(d.x, d.y + 4);
     this.facing = 'down';
     this.player.play('idle-down');
-    this.idle = 0; this.piloting = false; this.selfPilot?.reset();
+    this.selfPilot?.reset();
+    // Came out on their own: keep doing their own thing. Walked out by hand: back in control.
+    if (auto) { this.piloting = true; this.idle = 99; } else { this.idle = 0; this.piloting = false; }
     this.cameras.main.fadeIn(300, 20, 16, 30);
     this.goalSig = null; this.lastNear = undefined;
+  }
+
+  // Visitors: Sam goes into a building (and comes back out when their visit ends)
+  samEnter(id) {
+    this.samInside = id;
+    for (const o of [this.sam, this.samShadow, this.samTag]) o.setVisible(false);
+  }
+  samExit(id) {
+    if (this.samInside !== id) return;
+    this.samInside = null;
+    const d = this.doorOf(id);
+    this.sam.setPosition(d.x, d.y + 4);
+    for (const o of [this.sam, this.samShadow, this.samTag]) o.setVisible(true);
   }
 
   async collectSun() {

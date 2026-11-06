@@ -62,7 +62,7 @@ export function buildTown(s) {
       s.windowGlows.push(s.add.image(wx, wy, 'window-lit').setDepth(100001).setAlpha(0));
     }
     spots[shop.id] = { x, y: bottom + 10, name: shop.name };
-    s.interactables.push({ x, y: bottom + 8, r: 14, label: () => ({ text: shop.name }) });
+    s.interactables.push({ x, y: bottom + 8, r: 14, label: () => ({ text: `Go into ${shop.name}` }), action: () => s.enterBuilding(shop.id) });
   }
 
   // ---------- plaza ----------

@@ -18,6 +18,28 @@ Code: `src/world/town.js` (places, townsfolk, dog), `src/world/town-art.js` (spr
 | Dog park | Fenced, at the bottom of town |
 | Dog house | Next to the veggie patch. The dog stays home and potters around it; it comes along only for walks (when high) and plays fetch near home. It pathfinds like everyone else, so it never crosses walls, fences or water. |
 
+## Inside the buildings
+
+Every building can be entered (walk to its door). Rooms are themed and staffed; code in
+`src/world/buildings.js`, scene in `src/scenes/Interior.js`.
+
+| Building | Inside | What happens (automatically, or ask at the counter/desk) |
+|---|---|---|
+| Cottage | Bed, dresser (Garden Journal), table with every dish you've cooked, ribbons on the wall | Rest, read the journal |
+| The Sunny Cup | Counter with espresso machine, pastry case and register; menu board; tables; Pip the barista | Order at the counter → pay → pick up the cup → sit at a table → cocoa and croissant |
+| Rise & Shine Bakery | Bread shelves, brick oven, pastry counter, tables; Juniper the baker | Order → pay → sit → croissant, bread, apple pie |
+| Valley Kitchen | Host stand, kitchen window with Basil the chef, tablecloth tables, a waiter | Greeted and seated → read the menu → waiter takes the order → fetches the plate from the kitchen → eat → pay at the table |
+| Steady Strength Gym | Front desk, 2 treadmills, squat rack, bench press, exercise bike, dumbbell rack, yoga mat, mirror, water cooler; Coach Rowan | Check in with your card → rotate through machines (treadmill belt moves, bike pedals, squats and presses bob) with water breaks |
+
+- **How long:** eating lasts until the reading is back in range; the gym lasts until it's no longer
+  high; urgent states end the visit. Visits outside those states are short (about 14 s).
+- **Control:** the owner's character walks in on its own when low or high, or after 7 idle seconds
+  inside. Any movement takes control back.
+- **Visitors:** Sam walks into the building and disappears inside; a visitor who follows them in sees
+  Sam's visit play out (with a name tag).
+- **Paying is cosmetic.** A coin bubble and a register sound, nothing spent: getting food for a low
+  should never cost anything in the game.
+
 ## Automatic actions (33)
 
 After 7 idle seconds the owner's character takes over (any input hands control back); visitors

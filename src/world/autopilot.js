@@ -17,7 +17,7 @@ const PLAN = {
   in_range: [['pet', 3], ['fetch', 2], ['garden', 2], ['wander', 1], ['sunflowers', 1], ['pond', 1], ['fish', 1], ['chat', 2],
     ['fountain', 1], ['read', 1], ['flowers', 1], ['maple', 1], ['chickens', 1]],
   low: [['coffee', 3], ['restaurant', 3], ['bakery', 2], ['juice', 2], ['icecream', 1], ['homeSnack', 1]],
-  high: [['gym', 3], ['track', 3], ['walkDog', 3], ['yoga', 1], ['fountainDrink', 2], ['pondWalk', 1], ['stretch', 1]],
+  high: [['gym', 4], ['track', 3], ['walkDog', 3], ['yoga', 1], ['fountainDrink', 2], ['pondWalk', 1], ['stretch', 1], ['benchOutside', 1]],
   urgent_low: [['treat_low', 1]],
   urgent_high: [['treat_high', 1]],
   stale: [['nap', 1]],
@@ -231,6 +231,18 @@ export class Autopilot {
     };
   }
 
+  /** Walk to a building's door and go in. The owner's character enters for real; for visitors, Sam
+   *  disappears inside (visitors can follow them in) until the visit ends. */
+  visit(id, label) {
+    const s = this.s, door = s.town?.spots?.[id];
+    if (!door) return null;
+    return {
+      label, target: { x: door.x, y: door.y - 2 }, look: { x: door.x, y: door.y - 20 }, duration: Infinity,
+      begin: () => { if (this.real) s.enterBuilding(id, { auto: true }); else s.samEnter(id); },
+      end: () => { if (!this.real) s.samExit(id); },
+    };
+  }
+
   /** "You are…" for the owner, "Sam is…" for visitors. */
   say(you, them) { return this.name ? `${this.name} is ${them}` : you; }
 
@@ -306,11 +318,11 @@ export class Autopilot {
 
       // ---------- low: eat until back in range ----------
       case 'coffee':
-        return sp.coffeeSeat && this.eatAt(sp.coffeeSeat, this.say('Having cocoa and a croissant at The Sunny Cup', 'having cocoa and a croissant at The Sunny Cup'), [['icon-coffee'], ['icon-croissant']]);
+        return this.visit('coffee', this.say('Getting cocoa and a croissant at The Sunny Cup', 'getting cocoa and a croissant at The Sunny Cup'));
       case 'restaurant':
-        return sp.restaurantSeat && this.eatAt(sp.restaurantSeat, this.say('Eating at Valley Kitchen', 'eating at Valley Kitchen'), [['icon-meal'], ['icon-forkknife']]);
+        return this.visit('restaurant', this.say('Eating at Valley Kitchen', 'eating at Valley Kitchen'));
       case 'bakery':
-        return sp.bakery && this.eatAt(sp.bakery, this.say('Grabbing a snack at the bakery', 'grabbing a snack at the bakery'), [['icon-croissant'], ['dish-bread']]);
+        return this.visit('bakery', this.say('Grabbing a snack at the bakery', 'grabbing a snack at the bakery'));
       case 'juice':
         return sp.juice && this.eatAt(sp.juice, this.say('Having juice at the stand', 'having juice at the stand'), [['icon-juice']]);
       case 'icecream':
@@ -322,7 +334,9 @@ export class Autopilot {
 
       // ---------- high: move to bring it down ----------
       case 'gym':
-        return sp.gym && { label: this.say('Lifting at Steady Strength Gym', 'lifting at Steady Strength Gym'), target: sp.gym, look: { x: sp.gym.x, y: sp.gym.y - 20 }, duration: 9,
+        return this.visit('gym', this.say('Working out at Steady Strength Gym', 'working out at Steady Strength Gym'));
+      case 'benchOutside':
+        return sp.gym && { label: this.say('Lifting outside the gym', 'lifting outside the gym'), target: sp.gym, look: { x: sp.gym.x, y: sp.gym.y - 20 }, duration: 9,
           begin: () => { a.bubbleIcon('icon-dumbbell'); this.bob(0.86, 420); },
           tick: () => { if (Math.random() < 0.02) s.sweat.emitParticleAt(a.x + 4, a.y - 22); } };
       case 'track':

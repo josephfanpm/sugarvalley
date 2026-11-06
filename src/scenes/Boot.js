@@ -3,6 +3,7 @@ import { makeSprites } from '../world/pixels.js';
 import { loadView, MODE } from '../net.js';
 import { setSampler } from '../audio.js';
 import { makeTownArt } from '../world/town-art.js';
+import { makeInteriorArt } from '../world/interior-art.js';
 
 const ART = '/art/';
 
@@ -28,6 +29,7 @@ export class Boot extends Phaser.Scene {
   async create() {
     makeSprites(this);
     makeTownArt(this);
+    makeInteriorArt(this);
     setSampler((key, volume) => { if (!this.cache.audio.exists(key)) return false; this.sound.play(key, { volume }); return true; });
     try { await Promise.race([document.fonts.load('16px "Pixelify Sans"'), new Promise((r) => setTimeout(r, 1500))]); } catch { /* fall back */ }
     try {
