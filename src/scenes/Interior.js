@@ -414,7 +414,9 @@ export class Interior extends Phaser.Scene {
       if (it.enabled && !it.enabled()) continue;
       const ix = it.follow ? it.follow.x : it.x, iy = it.follow ? it.follow.y : it.y;
       const d = Math.hypot(ix - this.player.x, iy - this.player.y);
-      if (d < it.r + 8 && d < bd) { best = it; bd = d; }
+      // Tight zones for things; people and animals keep you at arm's length, so a bit past their body.
+      const reach = it.follow ? it.r + 4 : Math.max(10, it.r * 0.6);
+      if (d < reach && d < bd) { best = it; bd = d; }
     }
     return best;
   }

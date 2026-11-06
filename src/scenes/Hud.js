@@ -466,11 +466,11 @@ export class Hud extends Phaser.Scene {
   // ---------- caption one-liner ----------
   updateCaption(animate = true) {
     if (!this.view) return;
-    const text = captionFor(this.view);
+    const text = captionFor(this.view, Date.now(), this.capSalt || 0);
     if (text === this.caption) return;
     this.caption = text;
     this.setText(this.capText, text);
-    this.capBox.setVisible(!isUrgent(this.view.state));
+    this.capBox.setVisible(!isUrgent(this.view.state) && !this.current);
     this.layoutCaption();
     if (animate) this.tweens.add({ targets: this.capBox, alpha: { from: 0, to: 1 }, duration: 400 });
   }
@@ -478,10 +478,12 @@ export class Hud extends Phaser.Scene {
   layoutCaption() {
     if (!this.caption) return;
     const s = this.s, { width, height } = this.scale, m = 6 * s;
-    this.capText.setWordWrapWidth(Math.min(width - 2 * m - 12 * s, 300 * s));
+    // Stay clear of the bottom-left buttons (on narrow screens the box already sits above them).
+    const room = this.narrow ? width - 2 * m : width - 2 * (m + 74 * s);
+    this.capText.setWordWrapWidth(Math.max(120 * s, Math.min(room - 12 * s, 300 * s)));
     const w = Math.ceil(this.capText.width / s + 12), h = Math.ceil(this.capText.height / s + 6);
-    const base = this.narrow ? 18 : 0;
-    const y = this.prompt.visible ? height - m - (26 + base) * s - h * s : height - m - (18 + base) * s - h * s;
+    // Same spot as the interaction prompt (they take turns)
+    const y = this.prompt.y - (h * s) / 2;
     this.capPanel.setPosition(width / 2 - (w * s) / 2, y).setScale(s).setSize(w, h);
     this.capText.setPosition(width / 2, y + (h * s) / 2 + s * 0.5);
   }
@@ -583,9 +585,16 @@ export class Hud extends Phaser.Scene {
 
   // ---------- prompt & toast ----------
   showPrompt(p) {
+    const had = !!this.current;
     this.current = p;
     this.prompt.setVisible(!!p && !this.urgent.visible);
-    if (!p) { this.layoutCaption(); return; }
+    // One box at the bottom: an interaction replaces the blood sugar line while you're in range of it.
+    if (!p) {
+      if (had) { this.capSalt = (this.capSalt || 0) + 1; this.caption = null; this.updateCaption(); } // walked away: a fresh line
+      this.capBox.setVisible(!!this.caption && !isUrgent(this.view?.state));
+      return;
+    }
+    this.capBox.setVisible(false);
     this.setText(this.promptText, p.text);
     this.setText(this.promptCost, p.cost || '');
     this.promptSun.setVisible(!!p.cost);
@@ -593,7 +602,6 @@ export class Hud extends Phaser.Scene {
     this.promptKeyText.setVisible(!!p.action);
     this.setText(this.promptKeyText, touch() ? 'Tap' : 'E');
     this.layoutPrompt();
-    this.layoutCaption();
   }
 
   layoutPrompt() {

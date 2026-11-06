@@ -753,7 +753,9 @@ export class World extends Phaser.Scene {
       if (it.enabled && !it.enabled()) continue;
       const ix = it.follow ? it.follow.s.x : it.x, iy = it.follow ? it.follow.s.y : it.y;
       const d = Math.hypot(ix - p.x, iy - p.y);
-      if (d < it.r + 8 && d < bd) { best = it; bd = d; }
+      // Tight zones for things; people and animals keep you at arm's length, so a bit past their body.
+      const reach = it.follow ? it.r + 4 : Math.max(10, it.r * 0.6);
+      if (d < reach && d < bd) { best = it; bd = d; }
     }
     return best;
   }
