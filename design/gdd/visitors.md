@@ -18,7 +18,7 @@
 
 ## Knowing what to do
 
-The NEXT box always shows one step, and an arrow points at it.
+An arrow always points at the next step (the HUD has no goal box).
 
 | Owner, in order | Visitor, in order |
 |---|---|

@@ -144,7 +144,7 @@ export class Autopilot {
     this.tweenStop();
   }
   tweenStop() { if (this.tw) { this.tw.remove(); this.tw = null; this.a.sprite.setScale(1); } }
-  get leash() { return this.phase !== 'idle' && !!this.current?.leash; }
+  get leash() { return this.phase !== 'idle' && !!this.current?.leash && (this.routeIdx > 1 || this.phase === 'doing'); }
 
   update(dt, state) {
     if (state !== this.lastState) { this.lastState = state; if (this.current) this.reset(); }
@@ -254,10 +254,13 @@ export class Autopilot {
       }
       case 'fetch': {
         if (!s.dog) return null;
-        const spot = s.randomWalkable(a);
-        if (!spot) return null;
-        return { label: this.say('Playing fetch with the dog', 'playing fetch with the dog'), duration: 4.5,
-          begin: () => { a.bubbleIcon('icon-paw'); s.throwBall(a, spot); } };
+        const d = s.dog, near = { x: d.x + 16, y: d.y + 4 };
+        return { label: this.say('Playing fetch with the dog', 'playing fetch with the dog'), target: near, look: { x: d.x, y: d.y }, duration: 5,
+          begin: () => {
+            a.bubbleIcon('icon-paw');
+            const spot = s.randomWalkable({ x: d.home.x, y: d.home.y + 24 });
+            if (spot) s.throwBall(a, spot);
+          } };
       }
       case 'garden': {
         const plants = s.gardenPlants || [];
@@ -326,7 +329,7 @@ export class Autopilot {
         return sp.track && { label: this.say('Running laps at the track', 'running laps at the track'), route: [...sp.track, ...sp.track, sp.track[0]], speed: 1.7, duration: 1.5,
           onWaypoint: (i) => { if (i % 3 === 1) a.bubbleIcon('icon-shoe'); if (Math.random() < 0.5) s.sweat.emitParticleAt(a.x + 4, a.y - 22); } };
       case 'walkDog':
-        return s.dog && sp.dogWalk && { label: this.say('Walking the dog', 'walking the dog'), route: sp.dogWalk.slice(Math.random() < 0.5 ? 0 : 3).concat(sp.dogPark), speed: 1.15, leash: true, duration: 3,
+        return s.dog && sp.dogWalk && { label: this.say('Walking the dog', 'walking the dog'), route: [{ x: s.dog.home.x + 20, y: s.dog.home.y + 12 }, ...sp.dogWalk, ...sp.dogPark], speed: 1.15, leash: true, duration: 3,
           onWaypoint: (i) => { if (i % 3 === 1) a.bubbleIcon('icon-paw'); } };
       case 'yoga':
         return sp.yoga && { label: this.say('Doing yoga in the park', 'doing yoga in the park'), target: sp.yoga, duration: 8, begin: () => { a.bubbleIcon('gift-heart'); this.bob(0.92, 1400); } };

@@ -209,6 +209,9 @@ export function makeSprites(scene) {
   canvasTexture(scene, 'arrow', 11, 10, (c) => art(c, [
     '..kkkkkkk..', '..kYyyyyk..', '..kYyyyyk..', 'kkkYyyyykkk', 'kYYyyyyyyyk', '.kYyyyyyyk.', '..kYyyyyk..', '...kYyyk...', '....kyk....', '.....k.....',
   ], { k: PAL.peachDark, y: PAL.gold, Y: PAL.sun }));
+  canvasTexture(scene, 'icon-bag', 9, 9, (c) => art(c, [
+    '...kkk...', '..k...k..', '.kkkkkkk.', 'kwwwwwwwk', 'kwlwwwlwk', 'kwwwwwwwk', 'kwwwwwwwk', 'kwwwwwwwk', '.kkkkkkk.',
+  ], { k: PAL.woodDark, w: PAL.wood, l: PAL.woodLight }));
   canvasTexture(scene, 'icon-help', 7, 9, (c) => art(c, [
     '.kkkkk.', 'kk...kk', '.....kk', '....kk.', '...kk..', '...kk..', '.......', '...kk..', '...kk..',
   ], { k: PAL.woodDark }));

@@ -778,7 +778,7 @@ export class World extends Phaser.Scene {
     if (this.owner && this.piloting && this.selfPilot.label && g.id !== 'urgent') g = { id: `auto-${this.selfPilot.label}`, text: this.selfPilot.label, sub: 'Move to take over' };
     if (!this.owner && this.samPilot?.label && ['explore', 'pet', 'garden'].includes(g.id)) g = { ...g, sub: this.samPilot.label };
     const sig = `${g.id}|${g.progress}|${g.text}`;
-    if (sig !== this.goalSig) { this.goalSig = sig; this.game.events.emit('goal', g); }
+    if (sig !== this.goalSig) this.goalSig = sig;
     const t = g.follow ? { x: g.follow.s.x, y: g.follow.s.y - 16 } : g.target;
     const p = this.player;
     const show = !!t && Math.hypot(t.x - p.x, t.y + 20 - p.y) > 34;
@@ -826,7 +826,6 @@ export class World extends Phaser.Scene {
     const gives = Object.entries(res.gives || {});
     gives.forEach(([k, n], i) => this.flyItem(k, at, i));
     this.toast(`+${gives.map(([k, n]) => `${n} ${n > 1 ? ITEMS[k].plural : ITEMS[k].name.toLowerCase()}`).join(', ')} for your basket`);
-    this.game.events.emit('basket-bump');
   }
 
   async doCook(recipe) {
@@ -966,6 +965,7 @@ export class World extends Phaser.Scene {
     this.tweens.add({ targets: ball, x: spot.x, duration: 650, ease: 'Linear' });
     this.tweens.add({ targets: ball, y: { from: actor.y - 14, to: spot.y - 2 }, duration: 650, ease: 'Quad.easeIn',
       onComplete: () => this.dog.fetch({ x: spot.x, y: spot.y }, () => ball.destroy()) });
+    this.dog.sprite.setTexture('dog-0');
     this.time.delayedCall(8000, () => ball.destroy());
   }
 

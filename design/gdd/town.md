@@ -16,12 +16,12 @@ Code: `src/world/town.js` (places, townsfolk, dog), `src/world/town-art.js` (spr
 | Steady Strength Gym | Weight bench outside; Coach Rowan |
 | Running track | Oval track with cones; a jogger always running laps |
 | Dog park | Fenced, at the bottom of town |
-| Dog house | Next to the veggie patch; the dog follows you everywhere |
+| Dog house | Next to the veggie patch. The dog stays home and potters around it; it comes along only for walks (when high) and plays fetch near home. It pathfinds like everyone else, so it never crosses walls, fences or water. |
 
 ## Automatic actions (33)
 
 After 7 idle seconds the owner's character takes over (any input hands control back); visitors
-always see Sam doing these. The NEXT box says what's happening ("Lifting at Steady Strength Gym").
+always see Sam doing these, with thought bubbles showing what they're up to.
 
 **In range: real work first (owner only, earns sunlight)**
 1. Collect sunlight at the Sun Well (when 15+ is waiting, or gifts)

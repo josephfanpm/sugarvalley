@@ -2,7 +2,7 @@
 
 Rules live in `src/data/valley-rules.js` (shared by server and demo). Costs in `src/data/balance.js`.
 
-## Restore order (NEXT box suggests in this order)
+## Restore order (the goal arrow suggests them in this order)
 
 | # | Restorable | Cost | Needs | Unlocks |
 |---|---|---|---|---|

@@ -5,7 +5,7 @@ import { TILE } from './terrain.js';
 import { PAL, hex } from '../data/palette.js';
 import { buildCottage } from './house.js';
 import { canvasTexture, px } from './pixels.js';
-import { Actor } from './autopilot.js';
+import { Actor, findPath } from './autopilot.js';
 import { sfx } from '../audio.js';
 
 const T = (n) => n * TILE;
@@ -164,51 +164,79 @@ export function updateTown(s, dt) {
 
 // ---------- the owner's dog ----------
 export class Dog {
+  // Stays home by default, pottering around the dog house. Comes along only on walks (when the
+  // character walks the dog because blood sugar is high) and for fetch near home. Always moves along
+  // the walkable grid, so it never goes through buildings, fences or water.
   constructor(s, home) {
     this.s = s;
     this.home = home;
-    this.sprite = s.add.image(home.x + 12, home.y + 8, 'dog-sit').setOrigin(0.5, 1);
+    this.sprite = s.add.image(home.x + 14, home.y + 10, 'dog-sit').setOrigin(0.5, 1);
     this.shadow = s.add.image(0, 0, 'shadow').setDepth(-4).setScale(0.8, 0.7);
-    this.frame = 0; this.t = 0; this.mode = 'follow'; this.target = null; this.wait = 0;
+    this.frame = 0; this.t = 0; this.idle = 0; this.mode = 'home'; this.path = null;
+    this.wanderIn = 2; this.repath = 0;
     this.leash = s.add.graphics().setDepth(99000);
   }
 
   get x() { return this.sprite.x; }
   get y() { return this.sprite.y; }
 
+  goTo(px, py) {
+    const s = this.s;
+    const from = s.nearestWalkable(Math.floor(this.x / TILE), Math.floor((this.y - 2) / TILE));
+    const to = s.nearestWalkable(Math.floor(px / TILE), Math.floor(py / TILE));
+    if (!from || !to) return false;
+    const p = findPath(s.walk, from, to);
+    if (!p) return false;
+    this.path = p.slice(1).map((t) => ({ x: t.x * TILE + 8, y: t.y * TILE + 12 }));
+    if (this.path.length) { const last = this.path[this.path.length - 1]; if (s.walk[to.y]?.[to.x]) { last.x = px; last.y = py; } }
+    return true;
+  }
+
+  fetch(spot, onFetched) { this.mode = 'fetch'; this.onFetched = onFetched; if (!this.goTo(spot.x, spot.y)) { onFetched?.(); this.mode = 'home'; } }
+
   update(dt, owner, { leash = false, napping = false } = {}) {
-    let tx = null, ty = null;
-    if (this.mode === 'fetch' && this.target) { tx = this.target.x; ty = this.target.y; }
-    else if (napping) { tx = this.home.x + 14; ty = this.home.y + 10; }
-    else if (owner) {
+    // decide where to go
+    if (leash && owner) {
+      if (this.mode !== 'walk') { this.mode = 'walk'; this.repath = 0; }
       const d = Math.hypot(owner.x - this.x, owner.y - this.y);
-      if (d > (leash ? 18 : 30)) { tx = owner.x - 14; ty = owner.y + 2; }
+      if ((this.repath -= dt) <= 0 && d > 20) { this.repath = 0.35; this.goTo(owner.x - 12, owner.y + 2); }
+      if (d <= 16) this.path = null;
+    } else if (this.mode === 'walk') {
+      this.mode = 'home'; this.goTo(this.home.x + 14, this.home.y + 10);
+    } else if (this.mode === 'fetch') {
+      if (!this.path?.length) { this.mode = 'home'; this.onFetched?.(); this.wanderIn = 1.5; }
+    } else if (napping) {
+      if (!this.path?.length && Math.hypot(this.home.x + 14 - this.x, this.home.y + 10 - this.y) > 6) this.goTo(this.home.x + 14, this.home.y + 10);
+    } else if (!this.path?.length && (this.wanderIn -= dt) <= 0) {
+      this.wanderIn = 4 + Math.random() * 6;
+      const tx = Math.floor(this.home.x / TILE) + Math.floor(Math.random() * 7) - 3, ty = Math.floor(this.home.y / TILE) + Math.floor(Math.random() * 5) - 1;
+      if (this.s.walk[ty]?.[tx]) this.goTo(tx * TILE + 8, ty * TILE + 12);
     }
+
+    // move along the path
     let moving = false;
-    if (tx !== null) {
-      const dx = tx - this.x, dy = ty - this.y, d = Math.hypot(dx, dy);
-      if (d > 2) {
-        const sp = (this.mode === 'fetch' ? 110 : 64) * Math.min(1.6, 0.7 + d / 60) * dt;
-        this.sprite.x += (dx / d) * Math.min(sp, d); this.sprite.y += (dy / d) * Math.min(sp, d);
-        this.sprite.setFlipX(dx < 0);
-        moving = true;
-      } else if (this.mode === 'fetch') { this.mode = 'return'; this.target = null; this.onFetched?.(); }
+    if (this.path?.length) {
+      const t = this.path[0], dx = t.x - this.x, dy = t.y - this.y, d = Math.hypot(dx, dy);
+      const speed = this.mode === 'fetch' ? 100 : this.mode === 'walk' ? 70 : 34;
+      const step = speed * dt;
+      if (d <= step) { this.sprite.x = t.x; this.sprite.y = t.y; this.path.shift(); }
+      else { this.sprite.x += (dx / d) * step; this.sprite.y += (dy / d) * step; }
+      if (Math.abs(dx) > 0.5) this.sprite.setFlipX(dx < 0);
+      moving = true;
     }
-    if (this.mode === 'return' && owner && Math.hypot(owner.x - this.x, owner.y - this.y) < 20) this.mode = 'follow';
     if (moving) {
-      if ((this.t += dt) > 0.12) { this.t = 0; this.frame ^= 1; this.sprite.setTexture(`dog-${this.frame}`); }
-    } else this.sprite.setTexture(napping ? 'dog-sit' : this.sprite.texture.key === 'dog-sit' ? 'dog-sit' : 'dog-0');
-    if (!moving && (this.wait += dt) > 1.5) this.sprite.setTexture('dog-sit');
-    if (moving) this.wait = 0;
+      this.idle = 0;
+      if ((this.t += dt) > (this.mode === 'home' ? 0.2 : 0.12)) { this.t = 0; this.frame ^= 1; this.sprite.setTexture(`dog-${this.frame}`); }
+    } else if ((this.idle += dt) > 1.2) this.sprite.setTexture('dog-sit');
+    else this.sprite.setTexture('dog-0');
     this.sprite.setDepth(this.y);
     this.shadow.setPosition(Math.round(this.x), Math.round(this.y));
-    // leash during walks
+
+    // leash while walking together
     this.leash.clear();
-    if (leash && owner) {
+    if (this.mode === 'walk' && owner && Math.hypot(owner.x - this.x, owner.y - this.y) < 48) {
       this.leash.lineStyle(1, hex(PAL.roseDark), 1);
       this.leash.lineBetween(owner.x + (this.x < owner.x ? -4 : 4), owner.y - 8, this.x + (this.sprite.flipX ? -4 : 4), this.y - 7);
     }
   }
-
-  fetch(spot, onFetched) { this.mode = 'fetch'; this.target = spot; this.onFetched = onFetched; }
 }

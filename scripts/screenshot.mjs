@@ -53,7 +53,7 @@ for (const k of keys.split(',').filter(Boolean)) {
 await sleep(400);
 // SHOT_EVAL: an expression to evaluate in the page before the screenshot (debugging).
 if (process.env.SHOT_EVAL) {
-  const r = await send('Runtime.evaluate', { expression: process.env.SHOT_EVAL, returnByValue: true });
+  const r = await send('Runtime.evaluate', { expression: process.env.SHOT_EVAL, returnByValue: true, awaitPromise: true });
   logs.push(`[eval] ${JSON.stringify(r.result?.value ?? r.exceptionDetails?.text)}`);
 }
 const shot = await send('Page.captureScreenshot', { format: 'png' });

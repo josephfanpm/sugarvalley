@@ -8,7 +8,7 @@
 2. **Urgent states win.** Urgent low (< 55 mg/dL by default) or urgent high shows a banner that
    can't be dismissed, with a plain message ("Take care of yourself first" / "Check on Sam", plus
    Text/Call for visitors when a number was added). The game keeps running so it never feels like a
-   punishment, but the character sits and treats, the NEXT box says "Take care of yourself first",
+   punishment, but the character sits and treats, the goal arrow goes away,
    and jokes, gifts and prompts step aside.
 3. **Stale data is never "fine."** The client re-checks this every minute itself, so a dropped
    connection can't freeze an old "in range" on screen. If the newest reading is more than 15 minutes old, nothing in

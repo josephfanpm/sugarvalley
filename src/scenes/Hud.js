@@ -1,5 +1,5 @@
 // HUD: sunlight (owner) or whose valley it is (visitor), current reading with a mini graph,
-// a tap-to-open graph panel, NEXT goal, basket, journal and weekly-goal windows, prompt, toasts,
+// a tap-to-open graph panel, inventory (I), journal and weekly-goal windows, prompt, toasts,
 // and the urgent-state banner (the game keeps running underneath).
 import { PAL, hex, STATE_COLOR } from '../data/palette.js';
 import { isUrgent, formatBg, unitLabel } from '../data/cgm.js';
@@ -7,7 +7,7 @@ import { sfx, setMuted, isMuted, unlockAudio } from '../audio.js';
 import { graphTexture } from '../ui/graph.js';
 import { captionFor } from '../data/captions.js';
 import { ITEM_ICON } from '../world/farm.js';
-import { ITEMS } from '../data/valley-rules.js';
+import { ITEMS, RECIPES } from '../data/valley-rules.js';
 import { WINDOWS } from '../data/insights.js';
 
 const INTRO_KEY = (role) => `sugar-valley-intro-${role}`;
@@ -38,9 +38,8 @@ export class Hud extends Phaser.Scene {
     this.game.events.on('prompt', (p) => this.showPrompt(p), this);
     this.game.events.on('toast', (t) => this.toast(t), this);
     this.game.events.on('sun-collected', () => this.bumpSun(), this);
-    this.game.events.on('goal', (g) => this.showGoal(g), this);
     this.scale.on('resize', () => this.layout());
-    this.events.once('shutdown', () => this.game.events.off('zoom').off('status').off('prompt').off('toast').off('sun-collected').off('goal'));
+    this.events.once('shutdown', () => this.game.events.off('zoom').off('status').off('prompt').off('toast').off('sun-collected'));
     this.time.addEvent({ delay: 30_000, loop: true, callback: () => this.updateCaption() });
     // Data refresh lives here: the HUD's clock keeps running even when a window is open.
     this.time.addEvent({ delay: 60_000, loop: true, callback: () => this.scene.get('World')?.refresh() });
@@ -69,16 +68,6 @@ export class Hud extends Phaser.Scene {
     this.bgText = this.text(10);
     this.bgSub = this.text(7, PAL.woodMid);
     this.mini = this.add.image(0, 0, '__DEFAULT').setOrigin(0).setVisible(false);
-    // Goal tracker ("Next")
-    this.goalBox = this.add.container(0, 0).setVisible(false);
-    this.goalPanel = this.panel(80, 26);
-    this.goalLabel = this.text(6, PAL.woodMid);
-    this.goalText = this.text(8);
-    this.goalSub = this.text(6, PAL.woodMid);
-    this.goalBarBg = this.add.rectangle(0, 0, 10, 10, hex(PAL.creamDark)).setOrigin(0, 0.5);
-    this.goalBar = this.add.rectangle(0, 0, 10, 10, hex(PAL.gold)).setOrigin(0, 0.5);
-    this.goalSun = this.add.image(0, 0, 'icon-sun').setOrigin(0.5);
-    this.goalBox.add([this.goalPanel, this.goalLabel, this.goalText, this.goalSub, this.goalBarBg, this.goalBar, this.goalSun]);
     // Caption one-liner
     this.capBox = this.add.container(0, 0).setVisible(false);
     this.capPanel = this.panel(80, 14).setTint(0xfff8e6);
@@ -121,6 +110,10 @@ export class Hud extends Phaser.Scene {
     this.gearBtn = this.panel(14, 14).setOrigin(0, 1).setInteractive({ useHandCursor: true }).setVisible(false);
     this.gearIcon = this.add.image(0, 0, 'icon-gear').setOrigin(0.5).setVisible(false);
     this.gearBtn.on('pointerdown', () => { location.href = '/game/setup.html'; });
+    this.bagBtn = this.panel(14, 14).setOrigin(0, 1).setInteractive({ useHandCursor: true }).setVisible(false);
+    this.bagIcon = this.add.image(0, 0, 'icon-bag').setOrigin(0.5).setVisible(false);
+    this.bagBtn.on('pointerdown', () => { unlockAudio(); this.toggleInventory(); });
+    this.input.keyboard.on('keydown-I', () => this.toggleInventory());
     this.helpBtn = this.panel(14, 14).setOrigin(0, 1).setInteractive({ useHandCursor: true });
     this.helpIcon = this.add.image(0, 0, 'icon-help').setOrigin(0.5);
     this.helpBtn.on('pointerdown', () => { unlockAudio(); this.showIntro(); });
@@ -151,19 +144,6 @@ export class Hud extends Phaser.Scene {
     this.urgent.add([this.urgentBg, this.urgentIcon, this.urgentTitle, this.urgentBody, ...this.callBtns.flatMap(({ b, t }) => [b, t])]);
     this.tweens.add({ targets: this.urgentIcon, scale: { from: this.s, to: this.s * 1.25 }, duration: 600, yoyo: true, repeat: -1 });
 
-    // Basket (owner): what chores gathered
-    this.basket = this.add.container(0, 0).setVisible(false);
-    this.basketPanel = this.panel(60, 16);
-    this.basket.add(this.basketPanel);
-    this.basketItems = Object.keys(ITEMS).map((k) => {
-      const [key, frame] = ITEM_ICON[k];
-      const img = this.add.image(0, 0, key, frame).setOrigin(0.5);
-      const t = this.text(7);
-      this.basket.add([img, t]);
-      return { k, img, t };
-    });
-    this.game.events.on('basket-bump', () => this.tweens.add({ targets: this.basket, scale: { from: 1.08, to: 1 }, duration: 300, ease: 'Back.easeOut' }), this);
-
     // Modal window (journal, weekly goal)
     this.modal = this.add.container(0, 0).setVisible(false).setDepth(9);
     this.modalShade = this.add.rectangle(0, 0, 10, 10, 0x1d1e2e, 0.55).setOrigin(0).setInteractive();
@@ -185,7 +165,6 @@ export class Hud extends Phaser.Scene {
     for (const t of [this.bgSub, this.toastText, this.promptKeyText, this.muteText, this.bigClose]) t.setFontSize(fs(6.5));
     for (const t of [this.bigHigh, this.bigLow, this.bigStart, this.bigEnd]) t.setFontSize(fs(5.5));
     this.urgentTitle.setFontSize(fs(9)); this.urgentBody.setFontSize(fs(7));
-    for (const b of this.basketItems) b.t.setFontSize(fs(7));
     for (const { t } of this.callBtns) t.setFontSize(fs(8));
 
     this.sunPanel.setPosition(m, m).setScale(s);
@@ -202,18 +181,17 @@ export class Hud extends Phaser.Scene {
     this.muteText.setPosition(m + 7 * s, height - m - 7 * s);
     this.gearBtn.setPosition(m + 17 * s, height - m).setScale(s);
     this.gearIcon.setPosition(m + 24 * s, height - m - 7 * s).setScale(s);
-    const hx = m + (this.owner ? 34 : 17) * s;
+    this.bagBtn.setPosition(m + 34 * s, height - m).setScale(s);
+    this.bagIcon.setPosition(m + 41 * s, height - m - 7 * s).setScale(s);
+    const hx = m + (this.owner ? 51 : 17) * s;
     this.helpBtn.setPosition(hx, height - m).setScale(s);
     this.helpIcon.setPosition(hx + 7 * s, height - m - 7 * s).setScale(s);
-    for (const t of [this.goalText]) t.setFontSize(fs(7.5));
-    for (const t of [this.goalLabel, this.goalSub, this.capText]) t.setFontSize(fs(6.5));
+    this.capText.setFontSize(fs(6.5));
     this.introTitle.setFontSize(fs(10)); this.introBtnText.setFontSize(fs(8));
     for (const r of this.introRows) r.t.setFontSize(fs(7));
-    this.layoutGoal();
     this.layoutCaption();
     this.layoutIntro();
     this.layoutUrgent();
-    this.layoutBasket();
   }
 
   layoutUrgent() {
@@ -231,33 +209,6 @@ export class Hud extends Phaser.Scene {
     });
   }
 
-  layoutBasket() {
-    if (!this.basket.visible) return;
-    const s = this.s, m = 6 * s;
-    const shown = this.basketItems.filter((b) => b.img.visible);
-    let x = 6;
-    for (const b of shown) {
-      const sc = 10 / Math.max(b.img.width, b.img.height);
-      b.img.setScale(sc * s).setPosition(m + (x + 5) * s, 0);
-      b.t.setPosition(m + (x + 11) * s, 0.5 * s);
-      x += 13 + b.t.width / s + 4;
-    }
-    const y = this.goalBox.visible && this.goalBottom ? this.goalBottom + 2 * s : m + 20 * s;
-    this.basketPanel.setPosition(m, -8 * s).setScale(s).setSize(Math.ceil(x + 2), 16);
-    this.basket.setPosition(0, y + 8 * s);
-  }
-
-  refreshBasket() {
-    const inv = this.view?.farm?.inventory || {};
-    const any = this.owner && Object.values(inv).some((n) => n > 0);
-    this.basket.setVisible(any);
-    for (const b of this.basketItems) {
-      const n = inv[b.k] || 0;
-      b.img.setVisible(n > 0); b.t.setVisible(n > 0);
-      this.setText(b.t, `${n}`);
-    }
-    this.layoutBasket();
-  }
 
   fitSun() {
     this.sunPanel.setSize(Math.ceil((this.owner ? 22 : 12) + this.sunText.width / this.s + 5), 16);
@@ -294,6 +245,7 @@ export class Hud extends Phaser.Scene {
     this.sunIcon.setVisible(this.owner);
     this.setText(this.sunText, this.owner ? `${v.valley.sun}` : `${v.name}'s valley`);
     this.gearBtn.setVisible(this.owner); this.gearIcon.setVisible(this.owner);
+    this.bagBtn.setVisible(this.owner); this.bagIcon.setVisible(this.owner);
     // Reading chip: visitors only see numbers if the owner shares them
     const r = v.latest, showChip = this.owner || v.showNumbers;
     for (const o of [this.bgPanel, this.bgDot, this.bgIcon, this.bgText, this.bgSub]) o.setVisible(showChip);
@@ -323,7 +275,6 @@ export class Hud extends Phaser.Scene {
       if (!seenIntro(v.role) && !q.has('nointro')) this.time.delayedCall(700, () => this.showIntro());
       else if (this.owner && v.recap && !q.has('norecap') && this.recapDue(v.recap)) this.time.delayedCall(900, () => this.openRecap());
     }
-    this.refreshBasket();
     // Safety rule #2: urgent states show a banner that can't be dismissed. The game keeps running
     // (the character sits and treats) but jokes, gifts and prompts step aside.
     const urgent = isUrgent(v.state);
@@ -349,7 +300,7 @@ export class Hud extends Phaser.Scene {
   lockWorld(on) { const w = this.scene.get('World'); if (w) w.inputLocked = on; }
 
   // ---------- modal windows ----------
-  clearModal() { for (const o of this.modalItems) o.destroy(); this.modalItems = []; }
+  clearModal() { for (const o of this.modalItems) o.destroy(); this.modalItems = []; this.modalKind = null; }
   closeModal() {
     if (!this.modal.visible) return;
     this.modal.setVisible(false); this.clearModal();
@@ -376,6 +327,42 @@ export class Hud extends Phaser.Scene {
     b.on('pointerdown', (p, lx, ly, e) => { e?.stopPropagation(); onClick(); });
     this.modal.add([b, t]); this.modalItems.push(b, t);
     return { b, t };
+  }
+
+  // Inventory (I): basket, cookbook, ribbons
+  toggleInventory() {
+    if (this.modal.visible && this.modalKind === 'inventory') { this.closeModal(); return; }
+    this.openInventory();
+  }
+  openInventory() {
+    const v = this.view;
+    if (!v || !this.owner || isUrgent(v.state)) return;
+    this.clearModal();
+    this.modalKind = 'inventory';
+    const pw = 180, ph = 132;
+    const { s, x0, y0 } = this.modalBox(pw, ph);
+    const X = (n) => x0 + n * s, Y = (n) => y0 + n * s;
+    this.mText(X(10), Y(12), 'Basket', 9, s);
+    this.mText(X(pw - 10), Y(12), touch() ? '' : 'I to close', 6, s, PAL.woodMid, 1);
+    const inv = v.farm?.inventory || {};
+    Object.keys(ITEMS).forEach((k, i) => {
+      const cx = X(22 + i * 34), cy = Y(36);
+      const slot = this.add.nineslice(cx, cy, 'panel', null, 26, 24, 4, 4, 4, 4).setScale(s).setTint(inv[k] ? 0xffffff : 0xdedede);
+      const [key, frame] = ITEM_ICON[k];
+      const img = this.add.image(cx, cy - 2 * s, key, frame);
+      img.setScale((s * 12) / Math.max(img.width, img.height)).setAlpha(inv[k] ? 1 : 0.35);
+      this.modal.add([slot, img]); this.modalItems.push(slot, img);
+      this.mText(cx + 9 * s, cy + 7 * s, `${inv[k] || 0}`, 6.5, s, PAL.ink, 1);
+      this.mText(cx, cy + 17 * s, ITEMS[k].name, 5.5, s, PAL.woodMid, 0.5);
+    });
+    const book = v.farm?.cookbook || {};
+    const cooked = Object.keys(book).length;
+    this.mText(X(10), Y(70), `Cookbook: ${cooked} of 7 recipes`, 7, s);
+    const names = RECIPES.filter((r) => book[r.id]).map((r) => r.name).join(', ');
+    this.mText(X(10), Y(82), cooked ? names : 'Cook at the campfire kitchen to fill it.', 6, s, PAL.woodMid).setWordWrapWidth((pw - 20) * s);
+    this.mText(X(10), Y(100), `Ribbons: ${v.valley.ribbons || 0}`, 7, s);
+    this.mText(X(10), Y(114), `Sunlight: ${v.valley.sun}`, 7, s);
+    this.mButton(X(pw - 30), Y(114), 40, 'OK', s, () => this.closeModal());
   }
 
   // Morning recap: yesterday's plant blooms
@@ -474,52 +461,6 @@ export class Hud extends Phaser.Scene {
     const cooked = Object.keys(this.view.farm?.cookbook || {}).length;
     this.mText(X(10), Y(ph - 16), 'Only you see this.', 5.5, s, PAL.woodMid);
     this.mText(X(10), Y(ph - 8), `Recipes cooked: ${cooked} of 7 · Ribbons: ${this.view.valley.ribbons || 0}`, 5.5, s, PAL.woodMid);
-  }
-
-  // ---------- goal tracker ----------
-  showGoal(g) {
-    this.goal = g;
-    this.goalBox.setVisible(!!g);
-    if (!g) return;
-    this.setText(this.goalLabel, 'NEXT');
-    this.setText(this.goalText, g.text);
-    const sub = g.progress ? (g.unit === '%' ? `${g.progress[0]}%` : `${g.progress[0]} / ${g.progress[1]}`) : g.sub || '';
-    this.setText(this.goalSub, sub);
-    this.goalSub.setVisible(!!sub);
-    const hasBar = !!g.progress;
-    for (const o of [this.goalBarBg, this.goalBar, this.goalSun]) o.setVisible(hasBar);
-    this.layoutGoal();
-    this.layoutBasket();
-    if (this.goalId !== g.id) {
-      this.goalId = g.id;
-      this.tweens.add({ targets: this.goalBox, alpha: { from: 0.2, to: 1 }, duration: 350 });
-    }
-  }
-
-  layoutGoal() {
-    const g = this.goal;
-    if (!g) return;
-    const s = this.s, m = 6 * s;
-    const hasBar = !!g.progress;
-    const textW = Math.max(this.goalText.width, this.goalSub.width + (hasBar ? 66 * s : 0), this.goalLabel.width) / s;
-    const full = (this.scale.width - 2 * m) / s;
-    let maxW = full - (this.bgPanel.visible ? this.bgPanel.width + 6 : 0);
-    let y = m + 20 * s;
-    // Not enough room beside the reading chip: drop below it.
-    if (maxW < Math.min(textW + 14, 120) && this.bgPanel.visible) { maxW = full; y = m + (this.bgPanel.height + 4) * s; }
-    const w = Math.ceil(Math.min(maxW, textW + 14)), h = this.goalSub.visible ? 30 : 22;
-    const x = m;
-    this.goalBottom = y + h * s;
-    this.goalPanel.setPosition(x, y).setScale(s).setSize(Math.max(40, w), h);
-    this.goalLabel.setPosition(x + 7 * s, y + 7 * s);
-    this.goalText.setPosition(x + 7 * s, y + 15 * s);
-    if (hasBar) {
-      const bw = 50, frac = Math.min(1, g.progress[0] / g.progress[1]);
-      this.goalSun.setScale(s * 0.8).setPosition(x + 11 * s, y + 23 * s);
-      this.goalBarBg.setPosition(x + 17 * s, y + 23 * s).setSize(bw * s, 4 * s);
-      this.goalBar.setPosition(x + 17 * s, y + 23 * s).setSize(Math.max(1, Math.round(bw * frac)) * s, 4 * s);
-      this.goalSub.setPosition(x + (17 + bw + 4) * s, y + 23 * s);
-    } else this.goalSub.setPosition(x + 7 * s, y + 23 * s);
   }
 
   // ---------- caption one-liner ----------

@@ -42,7 +42,6 @@ export class Interior extends Phaser.Scene {
     this.onHudInteract = () => this.interact();
     this.game.events.on('hud-interact', this.onHudInteract);
     this.events.once('shutdown', () => this.game.events.off('hud-interact', this.onHudInteract));
-    this.game.events.emit('goal', { id: 'inside', text: this.world.owner ? 'Your cottage' : `${this.view.name}'s cottage`, sub: 'Walk out the door to go back' });
   }
 
   fit() {

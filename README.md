@@ -50,6 +50,7 @@ while already set up links the provider to your existing valley.
 | Mute | M | Music note button |
 | Glucose graph | G (Esc closes) | Tap the reading |
 | How it works | H | ? button |
+| Inventory (basket, cookbook, ribbons) | I | Bag button |
 | Settings (owner) | — | Gear button |
 
 ### Test URLs
@@ -101,9 +102,8 @@ to an owner key to sign in first.
   collects sunlight, does chores, cooks and waters on its own, then plays fetch, fishes, chats… Low, it
   goes into town to eat until you're back in range. High, it hits the gym, runs the track or walks the
   dog. See [design/gdd/town.md](design/gdd/town.md).
-- **Knowing what to do:** a how-it-works card on first visit (? to reopen), a NEXT box with the next
-  step and progress toward the next restore, and an arrow over the target (pinned to the screen edge
-  when it's off screen).
+- **Knowing what to do:** a how-it-works card on first visit (? to reopen) and an arrow over the next
+  thing to do (pinned to the screen edge when it's off screen).
 - **One-liners:** a caption like "Sam's blood sugar is 112 mg/dL. Flat line, full heart." changes with
   each reading (`src/data/captions.js`). Plain wording for urgent states, no value when stale or hidden.
 
