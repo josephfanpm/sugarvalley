@@ -128,12 +128,13 @@ export class Interior extends Phaser.Scene {
 
   machine(id, key, tx, ty, opts) {
     const img = this.add.image(tx * T, ty * T, key).setOrigin(0.5, 1).setDepth(opts.flat ? -5 : ty * T);
-    if (!opts.flat) this.colliders.push({ x: tx * T - img.width / 2, y: ty * T - 6, w: img.width, h: 6 });
+    if (!opts.flat) { const h = Math.round(img.height * 0.6); this.colliders.push({ x: tx * T - img.width / 2 + 2, y: ty * T - h, w: img.width - 4, h }); }
     const m = { id, key, img, opts, x: opts.spot[0] * T, y: opts.spot[1] * T, busy: null };
-    if (opts.bar) { m.barRest = { x: tx * T + opts.bar[0], y: ty * T + opts.bar[1] }; m.bar = this.add.image(m.barRest.x, m.barRest.y, 'barbell').setDepth(img.depth + 0.5); }
+    if (opts.bar) { m.barRest = { x: tx * T + opts.bar[0], y: ty * T + opts.bar[1] }; m.bar = this.add.image(m.barRest.x, m.barRest.y, 'barbell').setAngle(opts.barAngle || 0).setDepth(img.depth + 0.5); }
     this.machines[id] = m;
     if (this.world.owner) {
-      this.interactables.push({ x: m.x, y: m.y + 10, r: 14, enabled: () => !m.busy, label: () => ({ text: opts.label }), action: () => this.playerDo((a, v) => v.useMachine(a, m, 8)) });
+      // right where you stand when you walk up to it
+      this.interactables.push({ x: tx * T, y: ty * T + (opts.flat ? 0 : 4), r: 22, enabled: () => !m.busy, label: () => ({ text: opts.label }), action: () => this.playerDo((a, v) => v.useMachine(a, m, 8)) });
     }
     return m;
   }
@@ -259,18 +260,20 @@ export class Interior extends Phaser.Scene {
       case 'treadmill': // on the belt, facing the console, running in place
         sp.setPosition(mx + 3, my - 11); this.face(a, 'left'); sp.play('walk-left', true); sp.anims.timeScale = 1.9; break;
       case 'bike': // on the seat, pedaling toward the handlebars
-        sp.setPosition(mx + 4, my - 3); this.face(a, 'left'); sp.play('walk-left', true); sp.anims.timeScale = 0.9; break;
+        sp.setPosition(mx + 1, my - 3); this.face(a, 'left'); sp.play('walk-left', true); sp.anims.timeScale = 0.9;
+        pose.arms = { x: mx - 10, y: my - 17 }; pose.gfx = this.add.graphics().setDepth(pose.depth + 1); break;
       case 'squat': { // bar on the shoulders, down and up
         sp.setPosition(mx, my - 5); this.face(a, 'down');
         pose.shoulder = true;
         a.tw = this.tweens.add({ targets: sp, scaleY: 0.78, scaleX: 1.08, duration: 650, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
         break;
       }
-      case 'bench': { // lying on the bench, pressing the bar over the chest
+      case 'bench': { // lying along the bench (head toward the rack), the bar across the chest
         sp.setOrigin(0.5, 0.5).setAngle(-90);
-        sp.setPosition(mx - 2, my - 11); a.facing = 'down'; sp.play('idle-down', true);
-        m.bar.setPosition(mx - 1, my - 15).setDepth(pose.depth + 1);
-        pose.press = this.tweens.add({ targets: m.bar, y: my - 10, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        sp.setPosition(mx, my - 10); a.facing = 'down'; sp.play('idle-down', true);
+        m.bar.setPosition(mx + 4, my - 10).setDepth(pose.depth + 1);
+        // press: the bar rises toward the camera (a little bigger), then lowers back to the chest
+        pose.press = this.tweens.add({ targets: m.bar, scaleX: 1.15, scaleY: 1.3, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
         break;
       }
       default: break;
@@ -281,6 +284,8 @@ export class Interior extends Phaser.Scene {
     const pose = a.posed;
     if (!pose) return;
     pose.press?.remove();
+    pose.gfx?.destroy();
+    if (m.bar) m.bar.setScale(1);
     this.unbob(a);
     const sp = a.sprite;
     sp.setOrigin(0.5, 32 / 48).setAngle(0).setScale(1);
@@ -367,7 +372,7 @@ export class Interior extends Phaser.Scene {
   spawnSam() {
     const sp = this.add.sprite(this.door.x, this.door.y - 12, 'player').setOrigin(0.5, 32 / 48);
     const act = new Actor(this, sp, this.add.image(0, 0, 'shadow').setDepth(-4).setScale(0.8, 0.9));
-    this.samTag = this.add.text(0, 0, this.view.name, { fontFamily: '"Pixelify Sans"', fontSize: '8px', color: '#f3e5c2', stroke: '#645552', strokeThickness: 2, resolution: 4 }).setOrigin(0.5, 1).setDepth(100004);
+    this.samTag = this.add.text(0, 0, this.view.name, { fontFamily: '"DotGothic16"', fontSize: '8px', color: '#f3e5c2', stroke: '#645552', strokeThickness: 2, resolution: 4 }).setOrigin(0.5, 1).setDepth(100004);
     this.sam = act;
     this.actors.push(act);
     const run = { cancelled: false, items: [], pending: new Set() };
@@ -409,7 +414,14 @@ export class Interior extends Phaser.Scene {
       if (a.posed) {
         a.sprite.setDepth(a.posed.depth);
         if (a.posed.shoulder) { const m = Object.values(this.machines).find((x) => x.busy === a); if (m?.bar) m.bar.setPosition(a.x, a.y - 14 * a.sprite.scaleY).setDepth(a.posed.depth + 1); }
-        if (a.bubble) a.bubble.setPosition(Math.round(a.x), Math.round(a.y) - (a.posed.kind === 'bench' ? 18 : 30));
+        if (a.bubble) a.bubble.setPosition(Math.round(a.x), Math.round(a.y) - 30);
+        if (a.posed.gfx) {
+          const g = a.posed.gfx, hx = a.x - 5, hy = a.y - 9, t = a.posed.arms;
+          g.clear();
+          g.lineStyle(3, hex(PAL.violetDark), 1).lineBetween(hx, hy, t.x, t.y);
+          g.lineStyle(1, hex('#f3f2c0'), 1).lineBetween(hx, hy, t.x, t.y);
+          g.fillStyle(hex('#f3f2c0'), 1).fillRect(t.x - 1, t.y - 1, 2, 2);
+        }
       }
       if (a.carrying) a.carrying.setPosition(a.x, a.y - 22);
     }

@@ -31,12 +31,12 @@ export class Boot extends Phaser.Scene {
     makeTownArt(this);
     makeInteriorArt(this);
     setSampler((key, volume) => { if (!this.cache.audio.exists(key)) return false; this.sound.play(key, { volume }); return true; });
-    try { await Promise.race([document.fonts.load('16px "Pixelify Sans"'), new Promise((r) => setTimeout(r, 1500))]); } catch { /* fall back */ }
+    try { await Promise.race([document.fonts.load('16px "DotGothic16"'), new Promise((r) => setTimeout(r, 1500))]); } catch { /* fall back */ }
     try {
       this.registry.set('view', await loadView());
     } catch (e) {
       const msg = MODE === 'viewer' ? 'This link was turned off or never existed.' : e.message;
-      this.add.text(this.scale.width / 2, this.scale.height / 2 + 24, msg, { fontFamily: '"Pixelify Sans"', fontSize: '20px', color: '#f3e5c2' }).setOrigin(0.5);
+      this.add.text(this.scale.width / 2, this.scale.height / 2 + 24, msg, { fontFamily: '"DotGothic16"', fontSize: '20px', color: '#f3e5c2' }).setOrigin(0.5);
       return;
     }
     this.scene.start('World');

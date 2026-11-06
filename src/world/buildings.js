@@ -194,7 +194,7 @@ export const BUILDINGS = {
       s.machine('treadmill', 'treadmill-0', 2.6, 2.9, { label: 'Run on the treadmill', spot: [2.6, 3.4], pose: 'treadmill', belt: true, icon: 'icon-shoe' });
       s.machine('treadmill2', 'treadmill-0', 5.2, 2.9, { label: 'Run on the treadmill', spot: [5.2, 3.4], pose: 'treadmill', belt: true, icon: 'icon-shoe' });
       s.machine('squat', 'squat-rack', 8.6, 3.4, { label: 'Squats at the squat rack', spot: [8.6, 3.8], pose: 'squat', bar: [0, -24], icon: 'icon-dumbbell' });
-      s.machine('bench', 'bench-press', 11.8, 3.0, { label: 'Bench press', spot: [11.8, 3.4], pose: 'bench', bar: [-1, -14], icon: 'icon-dumbbell' });
+      s.machine('bench', 'bench-press', 11.8, 3.0, { label: 'Bench press', spot: [11.8, 3.4], pose: 'bench', bar: [4, -10], barAngle: 90, icon: 'icon-dumbbell' });
       s.machine('bike', 'bike', 14.2, 4.6, { label: 'Ride the exercise bike', spot: [14.6, 5.0], pose: 'bike', icon: 'icon-shoe' });
       s.machine('dumbbells', 'dumbbell-rack', 12.4, 6.6, { label: 'Curl some dumbbells', spot: [12.4, 7.2], face: 'up', bob: [0.92, 450], icon: 'icon-dumbbell', approach: true });
       s.machine('yoga', 'yoga-mat', 8.4, 6.6, { label: 'Stretch on the mat', spot: [8.4, 6.4], face: 'down', bob: [0.9, 1300], icon: 'gift-heart', flat: true });

@@ -965,7 +965,7 @@ export class World extends Phaser.Scene {
     const w = this.wellPos;
     this.sam = this.add.sprite(w.x + 24, w.y + 14, 'player').setOrigin(0.5, 32 / 48);
     this.samShadow = this.add.image(0, 0, 'shadow').setDepth(-4).setScale(0.8, 0.9);
-    this.samTag = this.add.text(0, 0, this.view.name, { fontFamily: '"Pixelify Sans"', fontSize: '8px', color: '#f3e5c2', stroke: '#645552', strokeThickness: 2, resolution: 4 }).setOrigin(0.5, 1).setDepth(100004);
+    this.samTag = this.add.text(0, 0, this.view.name, { fontFamily: '"DotGothic16"', fontSize: '8px', color: '#f3e5c2', stroke: '#645552', strokeThickness: 2, resolution: 4 }).setOrigin(0.5, 1).setDepth(100004);
     this.samActor = new Actor(this, this.sam, this.samShadow);
     this.addBody(this.sam, 5, (o) => o === this.dog?.sprite && this.samPilot?.leash);
     this.samPilot = new Autopilot(this, this.samActor, { name: this.view.name });

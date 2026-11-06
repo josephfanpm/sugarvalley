@@ -73,11 +73,14 @@ export function makeInteriorArt(scene) {
     'km....................mk', 'km....................mk', 'km....................mk', 'km....................mk', 'km....................mk', 'km....................mk',
     'km....................mk', 'km....................mk', 'km....................mk', 'km....................mk', 'kmkkkkkkkkkkkkkkkkkkkkmk', 'kkkkkkkkkkkkkkkkkkkkkkkk',
   ], { k: PAL.stoneDeep, m: PAL.stoneDark, R: PAL.roseDark });
-  T('bench-press', 30, 18, [
-    '..............................', '..............................', '..............................', '..............................', '..............................',
-    '...kk..................kk.....', '...km..................mk.....', '...km..................mk.....', '...km...kkkkkkkkkkkk...mk.....', '...km..kbbbbbbbbbbbbk..mk.....',
-    '...km..kBBBBBBBBBBBBk..mk.....', '...kk..kkkkkkkkkkkkkk..kk.....', '.........k........k...........', '.........k........k...........', '........kkk......kkk..........', '..............................', '..............................', '..............................',
-  ], { k: PAL.stoneDeep, m: PAL.stoneDark, R: PAL.roseDark, b: PAL.blueDark, B: PAL.blue });
+  // Bench press seen from above: a flat bench running across the screen, rack uprights near the
+  // head end; the barbell lies across them, perpendicular to the bench.
+  T('bench-press', 34, 20, [
+    '..................................', '...................kmk............', '...................kmk............', '...................kmk............', '..................................',
+    '..................................', '......kkkkkkkkkkkkkkkkkkkkkkkkkk..', '......kBBBBBBBBBBBBBBBBBBBBBBBBk..', '......kbbbbbbbbbbbbbbbbbbbbbbbbk..', '......kbbbbbbbbbbbbbbbbbbbbbbbbk..',
+    '......kbbbbbbbbbbbbbbbbbbbbbbbbk..', '......kbbbbbbbbbbbbbbbbbbbbbbbbk..', '......kbbbbbbbbbbbbbbbbbbbbbbbbk..', '......kkkkkkkkkkkkkkkkkkkkkkkkkk..', '........kk..................kk....',
+    '........kk..................kk....', '...................kmk............', '...................kmk............', '...................kmk............', '..................................',
+  ], { k: PAL.stoneDeep, m: PAL.stoneDark, b: PAL.blueDark, B: PAL.blue });
   // Stationary bike, facing left: handlebars and flywheel at the front, seat at the back
   T('bike', 26, 19, [
     '..........................', '..kkk.....................', '..kmk.....................', '...kk.....................', '....k.........kkkkkk......',

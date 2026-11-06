@@ -1,7 +1,7 @@
 // Offline shell for the installed web app. Network first for code and data (so updates land
 // right away), cache first for art and fonts (they never change between versions).
-const CACHE = 'sugar-valley-v2';
-const SHELL = ['/game/', '/game/main.js', '/game/vendor/phaser.min.js', '/game/fonts/pixelify-sans-400.woff2', '/game/fonts/pixelify-sans-600.woff2'];
+const CACHE = 'sugar-valley-v3';
+const SHELL = ['/game/', '/game/main.js', '/game/vendor/phaser.min.js', '/game/fonts/dotgothic16-400.woff2'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

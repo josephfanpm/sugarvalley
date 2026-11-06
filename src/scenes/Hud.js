@@ -14,11 +14,11 @@ const INTRO_KEY = (role) => `sugar-valley-intro-${role}`;
 const seenIntro = (role) => { try { return !!localStorage.getItem(INTRO_KEY(role)); } catch { return true; } };
 const markIntro = (role) => { try { localStorage.setItem(INTRO_KEY(role), '1'); } catch { /* blocked */ } };
 
-const FONT = '"Pixelify Sans", monospace';
+const FONT = '"DotGothic16", monospace';
 const ARROWS = (d) => (d > 12 ? '⇈' : d > 6 ? '↑' : d > 2 ? '↗' : d >= -2 ? '→' : d >= -6 ? '↘' : d >= -12 ? '↓' : '⇊');
 const STATE_LABEL = { in_range: 'In range', high: 'High', low: 'Low', urgent_low: 'Urgent low', urgent_high: 'Urgent high', stale: 'No recent reading' };
 const touch = () => window.matchMedia('(pointer: coarse)').matches;
-// Break ligatures: Pixelify Sans' "fi"/"fl" glyphs render wrong in canvas text.
+// Break ligatures: DotGothic16' "fi"/"fl" glyphs render wrong in canvas text.
 const noLig = (t) => String(t).replace(/f(?=[il])/g, 'f‌');
 const HOUR = 3_600_000;
 
@@ -40,7 +40,7 @@ export class Hud extends Phaser.Scene {
     this.game.events.on('sun-collected', () => this.bumpSun(), this);
     this.scale.on('resize', () => this.layout());
     this.events.once('shutdown', () => this.game.events.off('zoom').off('status').off('prompt').off('toast').off('sun-collected'));
-    this.time.addEvent({ delay: 30_000, loop: true, callback: () => this.updateCaption() });
+    this.capPending = true; // show the blood sugar line on first load
     // Data refresh lives here: the HUD's clock keeps running even when a window is open.
     this.time.addEvent({ delay: 60_000, loop: true, callback: () => this.scene.get('World')?.refresh() });
     this.input.keyboard.on('keydown-G', () => this.toggleGraph());
@@ -175,6 +175,7 @@ export class Hud extends Phaser.Scene {
     this.layoutBig();
     this.narrow = width < 560;
     this.prompt.setPosition(width / 2, height - m - (this.narrow ? 30 : 12) * s);
+    this.prompt.baseY = this.prompt.y;
     this.layoutPrompt();
     this.toastBox.setPosition(width / 2, m + 30 * s);
     this.muteBtn.setPosition(m, height - m).setScale(s);
@@ -267,7 +268,9 @@ export class Hud extends Phaser.Scene {
       if (hasGraph) this.drawMini();
       if (this.graphOpen) this.drawBig();
     } else { this.mini.setVisible(false); this.toggleGraph(false); }
-    this.updateCaption(false);
+    const ts = v.latest?.ts ?? null;
+    if (ts !== this.lastReadingTs) { if (this.lastReadingTs !== undefined) this.capPending = true; this.lastReadingTs = ts; }
+    this.maybeShowCaption();
     this.layout();
     if (!this.introChecked && !isUrgent(v.state)) {
       this.introChecked = true;
@@ -464,15 +467,31 @@ export class Hud extends Phaser.Scene {
   }
 
   // ---------- caption one-liner ----------
-  updateCaption(animate = true) {
-    if (!this.view) return;
-    const text = captionFor(this.view, Date.now(), this.capSalt || 0);
-    if (text === this.caption) return;
-    this.caption = text;
-    this.setText(this.capText, text);
-    this.capBox.setVisible(!isUrgent(this.view.state) && !this.current);
+  /** The blood sugar line shows on first load and whenever a new reading arrives, until you can
+   *  interact with something. It doesn't come back on its own after that. */
+  maybeShowCaption() {
+    if (!this.view || !this.capPending || this.current || isUrgent(this.view.state)) return;
+    this.capPending = false;
+    this.capSalt = (this.capSalt || 0) + 1;
+    this.caption = captionFor(this.view, Date.now(), this.capSalt);
+    this.setText(this.capText, this.caption);
     this.layoutCaption();
-    if (animate) this.tweens.add({ targets: this.capBox, alpha: { from: 0, to: 1 }, duration: 400 });
+    this.fadeIn(this.capBox);
+  }
+
+  // Soft transitions: rise and fade in, fade out
+  fadeIn(c, base = c === this.capBox ? 0 : null) {
+    const y = base ?? c.baseY ?? c.y;
+    c.baseY = y;
+    this.tweens.killTweensOf(c);
+    c.setVisible(true).setAlpha(0).setY(y + 6 * this.s);
+    this.tweens.add({ targets: c, alpha: 1, y, duration: 280, ease: 'Cubic.easeOut' });
+  }
+  fadeOut(c) {
+    if (!c.visible) return;
+    const y = c.baseY ?? c.y;
+    this.tweens.killTweensOf(c);
+    this.tweens.add({ targets: c, alpha: 0, y: y + 3 * this.s, duration: 160, ease: 'Quad.easeIn', onComplete: () => { c.setVisible(false).setY(y); } });
   }
 
   layoutCaption() {
@@ -483,7 +502,7 @@ export class Hud extends Phaser.Scene {
     this.capText.setWordWrapWidth(Math.max(120 * s, Math.min(room - 12 * s, 300 * s)));
     const w = Math.ceil(this.capText.width / s + 12), h = Math.ceil(this.capText.height / s + 6);
     // Same spot as the interaction prompt (they take turns)
-    const y = this.prompt.y - (h * s) / 2;
+    const y = (this.prompt.baseY ?? this.prompt.y) - (h * s) / 2;
     this.capPanel.setPosition(width / 2 - (w * s) / 2, y).setScale(s).setSize(w, h);
     this.capText.setPosition(width / 2, y + (h * s) / 2 + s * 0.5);
   }
@@ -585,16 +604,16 @@ export class Hud extends Phaser.Scene {
 
   // ---------- prompt & toast ----------
   showPrompt(p) {
-    const had = !!this.current;
+    const prev = this.current;
     this.current = p;
-    this.prompt.setVisible(!!p && !this.urgent.visible);
-    // One box at the bottom: an interaction replaces the blood sugar line while you're in range of it.
-    if (!p) {
-      if (had) { this.capSalt = (this.capSalt || 0) + 1; this.caption = null; this.updateCaption(); } // walked away: a fresh line
-      this.capBox.setVisible(!!this.caption && !isUrgent(this.view?.state));
+    // One box at the bottom: an interaction replaces the blood sugar line.
+    if (!p || this.urgent.visible) {
+      if (prev) this.fadeOut(this.prompt);
+      if (!p) this.time.delayedCall(170, () => this.maybeShowCaption()); // a new reading may be waiting
       return;
     }
-    this.capBox.setVisible(false);
+    this.fadeOut(this.capBox);
+    const changed = !prev || prev.text !== p.text || prev.cost !== p.cost;
     this.setText(this.promptText, p.text);
     this.setText(this.promptCost, p.cost || '');
     this.promptSun.setVisible(!!p.cost);
@@ -602,6 +621,7 @@ export class Hud extends Phaser.Scene {
     this.promptKeyText.setVisible(!!p.action);
     this.setText(this.promptKeyText, touch() ? 'Tap' : 'E');
     this.layoutPrompt();
+    if (changed || !this.prompt.visible) this.fadeIn(this.prompt);
   }
 
   layoutPrompt() {
