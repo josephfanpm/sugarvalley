@@ -1,0 +1,10 @@
+data/
+node_modules/
+assets/Sprout Lands*/
+.claude/
+.git/
+production/
+design/
+docs/
+tests/
+*.log

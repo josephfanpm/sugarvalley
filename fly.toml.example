@@ -1,0 +1,23 @@
+# Copy to fly.toml, set `app` and PUBLIC_BASE, then: fly launch --copy-config --no-deploy
+#   fly volumes create sugar_data --size 1
+#   fly secrets set SUGARPEEK_KEY=$(openssl rand -base64 32) GOOGLE_CLIENT_ID=...
+#   fly deploy
+app = "sugar-valley-CHANGE-ME"
+primary_region = "iad"
+
+[env]
+  PUBLIC_BASE = "https://sugar-valley-CHANGE-ME.fly.dev"
+
+[mounts]
+  source = "sugar_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"   # the poller must keep running to fetch CGM readings
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

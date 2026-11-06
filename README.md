@@ -14,7 +14,7 @@ play; visitors play in the owner's valley from the share link. Screenshots: `pro
 Requires Node 22.13 or newer. No npm dependencies.
 
 ```bash
-npm run assets   # once: copy Sprout Lands sheets from assets/Sprout Lands - Sprites - Basic pack/
+npm run assets   # optional: refresh assets/art from the raw Sprout Lands pack (already included)
 npm start        # http://localhost:8787 → opens the game at /game/
 npm test         # CGM connector, rewards and safety-rule tests
 ```
@@ -138,11 +138,17 @@ This repo uses [Claude Code Game Studios](https://github.com/donchitos/claude-co
 
 Credentials are encrypted at rest (AES-256-GCM, key in `data/secret.key` or `SUGARPEEK_KEY`).
 
+## Deploying
+
+See [DEPLOY.md](DEPLOY.md) (Docker, Fly.io).
+
 ## Credits and licenses
 
-- **Art:** [Sprout Lands](https://cupnooble.itch.io/sprout-lands-asset-pack) by Cup Nooble. The
+- **Art:** Assets - From: [Sprout Lands](https://cupnooble.itch.io/sprout-lands-asset-pack) - By: Cup Nooble.
+  See [assets/art/LICENSE-SproutLands.txt](assets/art/LICENSE-SproutLands.txt). The
   free Basic pack is licensed for **non-commercial use only**, with credit. A commercial release
   needs the Premium license. The raw pack is gitignored and must not be redistributed.
+- **Audio:** CC0 music by MintoDog and sounds by Kenney, see [assets/audio/CREDITS.md](assets/audio/CREDITS.md).
 - **Font:** Pixelify Sans (SIL Open Font License, `src/fonts/OFL.txt`).
 - **Engine:** [Phaser](https://phaser.io) (MIT).
 - New pixel art (Sun Well, lanterns, icons, UI panel, plants) is original to this project and uses

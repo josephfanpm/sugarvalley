@@ -62,9 +62,19 @@ function newSession(userId) {
   return token;
 }
 
+// Behind a hosting proxy (Fly, Render, Cloudflare), set TRUST_PROXY=1 so limits apply per visitor,
+// not to the proxy's address.
+function clientIp(req) {
+  if (process.env.TRUST_PROXY) {
+    const fwd = String(req.headers['fly-client-ip'] || req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    if (fwd) return fwd;
+  }
+  return req.socket.remoteAddress;
+}
+
 const hits = new Map();
 function rateLimit(req, limit = 120) {
-  const ip = req.socket.remoteAddress, minute = Math.floor(Date.now() / 60_000), key = `${ip}:${minute}`;
+  const ip = clientIp(req), minute = Math.floor(Date.now() / 60_000), key = `${ip}:${minute}`;
   const n = (hits.get(key) || 0) + 1; hits.set(key, n);
   if (hits.size > 10_000) hits.clear();
   if (n > limit) throw new HttpError(429, 'Slow down');
@@ -316,7 +326,7 @@ const routes = [
     const link = q.linkByHash.get(sha256(token));
     if (!link) throw new HttpError(404, 'This link was turned off.');
     const body = await readBody(req);
-    const key = `gift:${req.socket.remoteAddress}:${link.id}`, last = cheerHits.get(key) || 0;
+    const key = `gift:${clientIp(req)}:${link.id}`, last = cheerHits.get(key) || 0;
     if (Date.now() - last < 10_000) throw new HttpError(429, 'Give it a few seconds.');
     cheerHits.set(key, Date.now());
     if (cheerHits.size > 5000) cheerHits.clear();
@@ -331,7 +341,7 @@ const routes = [
     if (!link) throw new HttpError(404, 'This link was turned off.');
     const body = await readBody(req);
     if (!CHEERS[body.kind]) throw new HttpError(400, 'Unknown cheer.');
-    const key = `${req.socket.remoteAddress}:${link.id}`, last = cheerHits.get(key) || 0;
+    const key = `${clientIp(req)}:${link.id}`, last = cheerHits.get(key) || 0;
     if (Date.now() - last < 15_000) throw new HttpError(429, 'Give it a few seconds before cheering again.');
     cheerHits.set(key, Date.now());
     if (cheerHits.size > 5000) cheerHits.clear();

@@ -1,0 +1,16 @@
+Some or all of the art in assets/art/ is from the Sprout Lands Basic asset pack by Cup Nooble:
+https://cupnooble.itch.io/sprout-lands-asset-pack
+
+Licensing terms of the Sprout Lands Basic pack (from the pack's read_me):
+
+- You can modify the assets.
+- You can use these assets in any kind of non-commercial projects.
+  (Except anything to do with NFTs or AI training is not allowed.)
+- You can not redistribute the asset pack itself or resell it on other platforms, even if it is
+  slightly modified. Redistributing your own projects made with these assets (games, software, or
+  other) is allowed, and making your project open source is allowed, with this note.
+- Credit is required: Assets - From: Sprout Lands - By: Cup Nooble
+
+These sheets are included only as part of the Sugar Valley game. Don't reuse them as a standalone
+asset pack; get the pack from Cup Nooble's itch.io page instead. A commercial release of Sugar Valley
+needs the Sprout Lands premium license.
