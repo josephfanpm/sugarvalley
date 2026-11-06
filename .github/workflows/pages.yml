@@ -1,0 +1,40 @@
+# Builds the static prototype for GitHub Pages: the game in prototype mode (no server, no
+# sign-in). Readings come from the `data` branch (see readings.yml); no secrets are used here.
+name: Deploy prototype
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: pages
+  cancel-in-progress: true
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          BASE="/${GITHUB_REPOSITORY#*/}"
+          mkdir -p _site
+          cp -r src _site/game
+          cp -r assets/art _site/art
+          cp -r assets/audio _site/audio
+          # No setup, sign-in or sign-out pages in the prototype
+          rm -f _site/game/setup.html _site/game/setup.js
+          sed -i "s#\"/game/#\"$BASE/game/#g" _site/game/index.html _site/game/manifest.webmanifest
+          printf '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=game/"><title>Sugar Valley</title><a href="game/">Sugar Valley</a>\n' > _site/index.html
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

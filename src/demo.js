@@ -6,8 +6,9 @@ import * as B from './data/balance.js';
 import { restoreRule, doChore, cook, freshDay, ripeness } from './data/valley-rules.js';
 import { questView, journalView, tagDay, claimQuest, comebacksFrom, steadyMinutes, recapFor } from './data/insights.js';
 
-const KEY = 'sugar-valley-demo-v2';
 const q = new URLSearchParams(location.search);
+const PROTO = location.hostname.endsWith('github.io') || q.has('prototype');
+const KEY = PROTO ? 'sugar-valley-prototype-v1' : 'sugar-valley-demo-v2';
 const role = q.has('viewer') ? 'viewer' : 'owner';
 const fresh = () => ({
   sun: Number(q.get('sun')) || 120, collectedThrough: 0, wateredDay: 0, gifts: [],
@@ -27,14 +28,25 @@ let state = load();
 function persist() { if (!q.has('fresh')) try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* blocked */ } }
 
 let readings = null;
+let meta = null; // prototype: { name, unit, thresholds } published with the readings
+
+/** Prototype: real readings ({ name, unit, thresholds, readings: [[ts, mgdl, trend]] }). */
+export function setReadings(doc) {
+  if (!doc || !Array.isArray(doc.readings)) return;
+  meta = { name: doc.name, unit: doc.unit };
+  if (doc.thresholds) T = { ...B.DEFAULT_THRESHOLDS, ...doc.thresholds };
+  readings = doc.readings.filter((r) => Number.isFinite(r[0]) && Number.isFinite(r[1]))
+    .map(([ts, mgdl, trend]) => ({ ts, mgdl, trend })).sort((a, b) => a.ts - b.ts);
+}
 function data() {
+  if (PROTO) return readings || [];
   if (!readings) {
     readings = demoReadings();
     if (q.get('bg')) readings.push({ ts: Date.now(), mgdl: Number(q.get('bg')) });
   }
   return readings;
 }
-const T = B.DEFAULT_THRESHOLDS;
+let T = B.DEFAULT_THRESHOLDS;
 const inRangeToday = (rs, today) => rs.filter((r) => r.ts >= today && r.mgdl >= T.low && r.mgdl <= T.high).length;
 
 export function demoView() {
@@ -46,7 +58,7 @@ export function demoView() {
   freshDay(state, todayStart);
   const hidden = q.has('hidden');
   return {
-    role, name: 'Sam', unit: q.get('unit') === 'mmol' ? 'mmol' : 'mgdl', thresholds: T, showNumbers: !hidden,
+    role, name: meta?.name || (PROTO ? 'Joseph' : 'Sam'), unit: (q.get('unit') || meta?.unit) === 'mmol' ? 'mmol' : 'mgdl', thresholds: T, showNumbers: !hidden,
     latest: hidden ? null : latest, state: st,
     graph: hidden ? null : rs.filter((r) => r.ts >= now - 24 * 3_600_000).map((r) => [r.ts, r.mgdl]),
     days, todayStart, todayProgress,
@@ -61,7 +73,7 @@ export function demoView() {
     steady: hidden ? 0 : steadyMinutes(rs, T, now),
     recap: role === 'owner' ? recapFor(days[days.length - 1], rs, T) : null,
     latestTs: latest?.ts ?? null,
-    share: `${location.origin}/s/demo-link-xxxxxxxx`,
+    share: PROTO ? null : `${location.origin}/s/demo-link-xxxxxxxx`,
     contactPhone: role === 'viewer' && isUrgent(st) ? '+1 555 0100' : null,
   };
 }
@@ -72,7 +84,7 @@ export async function demoAct(action, body) {
   if (action === 'collect') {
     const fromGifts = state.gifts.length * B.SUN_PER_GIFT;
     result = { collected: v.valley.pending + fromGifts, fromGifts, gifts: state.gifts.length };
-    state.sun += v.valley.pending + fromGifts; state.collectedThrough = data()[data().length - 1].ts; state.gifts = [];
+    state.sun += v.valley.pending + fromGifts; state.collectedThrough = data().at(-1)?.ts ?? state.collectedThrough; state.gifts = [];
   } else if (action === 'restore') restoreRule(state, body.id);
   else if (action === 'water') state.wateredDay = v.todayStart;
   else if (action === 'gift') state.gifts.push({ kind: body.kind, ts: Date.now() });

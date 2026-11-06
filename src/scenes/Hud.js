@@ -9,6 +9,7 @@ import { captionFor } from '../data/captions.js';
 import { ITEM_ICON } from '../world/farm.js';
 import { ITEMS, RECIPES } from '../data/valley-rules.js';
 import { WINDOWS } from '../data/insights.js';
+import { MODE } from '../net.js';
 
 const INTRO_KEY = (role) => `sugar-valley-intro-${role}`;
 const seenIntro = (role) => { try { return !!localStorage.getItem(INTRO_KEY(role)); } catch { return true; } };
@@ -109,7 +110,7 @@ export class Hud extends Phaser.Scene {
     this.input.keyboard.on('keydown-M', mute);
     this.gearBtn = this.panel(14, 14).setOrigin(0, 1).setInteractive({ useHandCursor: true }).setVisible(false);
     this.gearIcon = this.add.image(0, 0, 'icon-gear').setOrigin(0.5).setVisible(false);
-    this.gearBtn.on('pointerdown', () => { location.href = '/game/setup.html'; });
+    this.gearBtn.on('pointerdown', () => { location.href = 'setup.html'; });
     this.bagBtn = this.panel(14, 14).setOrigin(0, 1).setInteractive({ useHandCursor: true }).setVisible(false);
     this.bagIcon = this.add.image(0, 0, 'icon-bag').setOrigin(0.5).setVisible(false);
     this.bagBtn.on('pointerdown', () => { unlockAudio(); this.toggleInventory(); });
@@ -182,9 +183,10 @@ export class Hud extends Phaser.Scene {
     this.muteText.setPosition(m + 7 * s, height - m - 7 * s);
     this.gearBtn.setPosition(m + 17 * s, height - m).setScale(s);
     this.gearIcon.setPosition(m + 24 * s, height - m - 7 * s).setScale(s);
-    this.bagBtn.setPosition(m + 34 * s, height - m).setScale(s);
-    this.bagIcon.setPosition(m + 41 * s, height - m - 7 * s).setScale(s);
-    const hx = m + (this.owner ? 51 : 17) * s;
+    const g = MODE === 'prototype' ? 17 : 0; // no settings button: close the gap
+    this.bagBtn.setPosition(m + (34 - g) * s, height - m).setScale(s);
+    this.bagIcon.setPosition(m + (41 - g) * s, height - m - 7 * s).setScale(s);
+    const hx = m + (this.owner ? 51 - g : 17) * s;
     this.helpBtn.setPosition(hx, height - m).setScale(s);
     this.helpIcon.setPosition(hx + 7 * s, height - m - 7 * s).setScale(s);
     this.capText.setFontSize(fs(6.5));
@@ -245,7 +247,8 @@ export class Hud extends Phaser.Scene {
     // Left panel
     this.sunIcon.setVisible(this.owner);
     this.setText(this.sunText, this.owner ? `${v.valley.sun}` : `${v.name}'s valley`);
-    this.gearBtn.setVisible(this.owner); this.gearIcon.setVisible(this.owner);
+    const gear = this.owner && MODE !== 'prototype';
+    this.gearBtn.setVisible(gear); this.gearIcon.setVisible(gear);
     this.bagBtn.setVisible(this.owner); this.bagIcon.setVisible(this.owner);
     // Reading chip: visitors only see numbers if the owner shares them
     const r = v.latest, showChip = this.owner || v.showNumbers;
@@ -254,7 +257,7 @@ export class Hud extends Phaser.Scene {
       const who = this.owner ? '' : `${v.name} · `;
       if (v.state === 'stale' || !r) {
         this.setText(this.bgText, `${who}No recent reading`);
-        this.setText(this.bgSub, r ? `Last one ${Math.round((Date.now() - r.ts) / 60000)} min ago` : this.owner ? 'Connect your CGM in settings' : '');
+        this.setText(this.bgSub, r ? `Last one ${Math.round((Date.now() - r.ts) / 60000)} min ago` : this.owner && MODE !== 'prototype' ? 'Connect your CGM in settings' : '');
       } else {
         const g = v.graph || [], prev = g.length > 1 ? g[g.length - 2][1] : r.mgdl;
         this.setText(this.bgText, `${who}${formatBg(r.mgdl, v.unit)} ${ARROWS(r.mgdl - prev)}`);

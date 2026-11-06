@@ -5,7 +5,7 @@ import { setSampler } from '../audio.js';
 import { makeTownArt } from '../world/town-art.js';
 import { makeInteriorArt } from '../world/interior-art.js';
 
-const ART = '/art/';
+const ART = '../art/';
 
 export class Boot extends Phaser.Scene {
   constructor() { super('Boot'); }

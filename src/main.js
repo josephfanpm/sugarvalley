@@ -17,5 +17,5 @@ window.game = new Phaser.Game({
 
 // Installable web app: offline shell (not in demo/test mode, so screenshots always load fresh code).
 if ('serviceWorker' in navigator && !new URLSearchParams(location.search).has('demo')) {
-  navigator.serviceWorker.register('/game/sw.js', { scope: '/game/' }).catch(() => {});
+  navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => {});
 }

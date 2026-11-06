@@ -1,0 +1,43 @@
+# Publishes the prototype owner's CGM readings to the `data` branch (readings only).
+# The Dexcom login lives in repo secrets: GitHub masks them in logs and never gives them to
+# pull requests from forks. This workflow only runs on its schedule or by hand.
+name: Publish readings
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+concurrency:
+  group: readings
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: app
+          persist-credentials: false
+      - name: Check out the data branch (created on the first run)
+        env:
+          REPO: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+        run: |
+          git clone --quiet --depth 1 --branch data "$REPO" data 2>/dev/null || {
+            mkdir data && cd data && git init --quiet -b data && git remote add origin "$REPO"; }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Poll Dexcom and publish
+        working-directory: data
+        env:
+          DEXCOM_USERNAME: ${{ secrets.DEXCOM_USERNAME }}
+          DEXCOM_PASSWORD: ${{ secrets.DEXCOM_PASSWORD }}
+          DEXCOM_REGION: ${{ secrets.DEXCOM_REGION }}
+          SV_NAME: Joseph
+          SV_UNIT: mmol
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          node ../app/scripts/publish-readings.mjs . --minutes 9 --every 150

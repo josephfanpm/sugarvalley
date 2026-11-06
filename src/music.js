@@ -2,9 +2,9 @@
 // never delay it. Day tracks alternate; evening and night use the softer title track. Crossfades on
 // changes. If loading fails, the synthesized music box in audio.js keeps playing instead.
 const TRACKS = {
-  day: ['/audio/music-day.ogg', '/audio/music-day.mp3'],
-  day2: ['/audio/music-day2.ogg', '/audio/music-day2.mp3'],
-  evening: ['/audio/music-evening.ogg', '/audio/music-evening.mp3'],
+  day: ['../audio/music-day.ogg', '../audio/music-day.mp3'],
+  day2: ['../audio/music-day2.ogg', '../audio/music-day2.mp3'],
+  evening: ['../audio/music-evening.ogg', '../audio/music-evening.mp3'],
 };
 const VOLUME = { day: 0.32, day2: 0.32, evening: 0.24 };
 const FADE_MS = 2500;
