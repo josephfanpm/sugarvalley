@@ -5,10 +5,12 @@
 import { canvasTexture } from '../world/pixels.js';
 import { PAL, hex } from '../data/palette.js';
 import { BUILDINGS, registerFurniture } from '../world/buildings.js';
-import { Actor } from '../world/autopilot.js';
+import { Actor, findPathGrid, ACTION_COOLDOWN } from '../world/autopilot.js';
+import { folkInside } from '../world/town.js';
 import { sfx, unlockAudio } from '../audio.js';
 
 const T = 16;
+const CELL = 8; // pathfinding grid indoors (finer than the valley's 16-px tiles)
 const SPEED = 60;
 const IDLE_BEFORE_AUTO = 7;
 const CANCEL = Symbol('cancel');
@@ -30,6 +32,7 @@ export class Interior extends Phaser.Scene {
     registerFurniture(this);
     this.buildRoom();
     this.cfg.build(this);
+    this.buildGrid();
     for (const l of this.lights) this.add.image(l.x, l.y, 'light').setScale(0.6).setTint(hex(PAL.gold)).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD).setDepth(5001);
     this.buildPlayer();
 
@@ -49,6 +52,7 @@ export class Interior extends Phaser.Scene {
     if (this.id !== 'cottage') this.game.events.emit('toast', this.cfg.name);
 
     if (!this.world.owner && this.world.samInside === this.id) this.spawnSam();
+    for (const f of folkInside(this.world, this.id)) this.spawnFolk(f);
     if (this.autoEnter && this.cfg.script) this.time.delayedCall(400, () => this.runPlayerScript({ auto: true }));
   }
 
@@ -137,12 +141,57 @@ export class Interior extends Phaser.Scene {
   check() { if (this.dead || this.run?.cancelled) throw CANCEL; }
 
   wait(sec) {
-    return new Promise((res, rej) => this.time.delayedCall(sec * 1000, () => ((this.dead || this.run?.cancelled) ? rej(CANCEL) : res())));
+    const run = this.run;
+    return new Promise((res, rej) => {
+      const entry = { rej };
+      entry.timer = this.time.delayedCall(sec * 1000, () => { run?.pending?.delete(entry); (this.dead || run?.cancelled) ? rej(CANCEL) : res(); });
+      run?.pending?.add(entry);
+    });
   }
 
   go(a, x, y, speed = 1) {
     this.check();
-    return new Promise((res, rej) => { a.path = [{ x, y }]; a.speed = speed; a.onArrive = res; a.onCancel = rej; a.runRef = this.run; });
+    const path = this.route(a.x, a.y, x, y);
+    return new Promise((res, rej) => { a.path = path; a.speed = speed; a.onArrive = res; a.onCancel = rej; a.runRef = this.run; });
+  }
+
+  // ---------- pathfinding and collisions indoors ----------
+  buildGrid() {
+    this.cols = Math.ceil((this.RW * T) / CELL); this.rows = Math.ceil((this.RH * T) / CELL);
+    this.grid = Array.from({ length: this.rows }, (_, cy) => Array.from({ length: this.cols }, (_, cx) => !this.blocked(cx * CELL + CELL / 2, cy * CELL + CELL / 2 + 2)));
+  }
+
+  cellNear(x, y) {
+    const cx = Math.floor(x / CELL), cy = Math.floor(y / CELL);
+    for (let r = 0; r < 5; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (this.grid[cy + dy]?.[cx + dx]) return { x: cx + dx, y: cy + dy };
+    }
+    return null;
+  }
+
+  /** Waypoints around furniture, ending exactly on the target (the last hop may step onto a seat or machine). */
+  route(fx, fy, tx, ty) {
+    const from = this.cellNear(fx, fy), to = this.cellNear(tx, ty);
+    const cells = from && to ? findPathGrid(this.grid, from, to) : null;
+    const pts = (cells || []).slice(1).map((c) => ({ x: c.x * CELL + CELL / 2, y: c.y * CELL + CELL / 2 + 2 }));
+    pts.push({ x: tx, y: ty, final: true });
+    return pts;
+  }
+
+  blockedFor(who, x, y, { staticOk = false } = {}) {
+    if (!staticOk && this.blocked(x, y)) return true;
+    return this.bodyInTheWay(who, x, y);
+  }
+
+  bodyInTheWay(who, x, y) {
+    const me = who?.sprite || who;
+    for (const a of this.actors) {
+      const o = a.sprite;
+      if (o === me || !o.visible) continue;
+      const inside = ((x - o.x) / 10) ** 2 + ((y - o.y) / 5.5) ** 2 < 1;
+      if (inside && Math.hypot(x - o.x, y - o.y) < Math.hypot(me.x - o.x, me.y - o.y)) return true;
+    }
+    return false;
   }
 
   face(a, dir) { a.facing = dir; a.sprite.play(`idle-${dir}`, true); }
@@ -223,7 +272,7 @@ export class Interior extends Phaser.Scene {
 
   async playerDo(fn, { leaveAfter = false } = {}) {
     if (this.playerRun) return;
-    const run = { cancelled: false, items: [] };
+    const run = { cancelled: false, items: [], pending: new Set() };
     this.playerRun = run;
     const a = this.playerActor;
     try { await fn(a, this.runView(run)); } catch (e) { if (e !== CANCEL) console.error(e); }
@@ -237,7 +286,7 @@ export class Interior extends Phaser.Scene {
     run.items = [];
     this.stand(a); this.unbob(a); this.clearBubble(a); a.inPlace = false; a.sprite.anims.timeScale = 1;
     a.carrying?.destroy(); a.carrying = null;
-    for (const s of Object.values(this.staff)) if (s.runRef === run) { s.path = [{ ...s.home }]; s.onArrive = null; s.onCancel = null; s.runRef = null; this.clearBubble(s); }
+    for (const s of Object.values(this.staff)) if (s.runRef === run) { s.path = this.route(s.x, s.y, s.home.x, s.home.y); s.onArrive = null; s.onCancel = null; s.runRef = null; this.clearBubble(s); }
   }
 
   takeControl() {
@@ -245,8 +294,29 @@ export class Interior extends Phaser.Scene {
     const run = this.playerRun;
     if (!run) return;
     run.cancelled = true;
+    for (const e of run.pending || []) { e.timer.remove(); e.rej(CANCEL); }
+    run.pending?.clear();
     for (const act of this.actors) if (act.runRef === run && act.onCancel) { const c = act.onCancel; act.path = null; act.onArrive = null; act.onCancel = null; c(CANCEL); }
     this.world.piloting = false;
+  }
+
+  // Townsfolk visiting this building while you're here
+  spawnFolk(f) {
+    const sp = this.add.sprite(this.door.x + (Math.random() * 30 - 15), this.door.y - 14, 'player').setOrigin(0.5, 32 / 48).setTint(hex(f.tint));
+    const act = new Actor(this, sp, this.add.image(0, 0, 'shadow').setDepth(-4).setScale(0.8, 0.9));
+    this.actors.push(act);
+    let said = 0;
+    this.interactables.push({ x: 0, y: 0, r: 14, follow: sp, label: () => ({ text: `Chat with ${f.name}` }),
+      action: () => { this.bubble(act, 'icon-chat'); sfx.open(); this.game.events.emit('toast', `${f.name}: ${f.lines[said++ % f.lines.length]}`); this.time.delayedCall(2500, () => this.clearBubble(act)); } });
+    const run = { cancelled: false, items: [], pending: new Set() };
+    const script = this.cfg.npcScript || this.cfg.script;
+    (async () => {
+      try { await script(this.runView(run), act, { keepGoing: () => !this.dead && Date.now() < f.until - 4000 }); } catch (e) { if (e !== CANCEL) console.error(e); }
+      if (this.dead) return;
+      this.cleanupRun(act, run);
+      try { await this.runView(run).go(act, this.door.x, this.door.y + 4); } catch { /* closed */ }
+      if (!this.dead) { sp.setVisible(false); act.shadow?.setVisible(false); }
+    })();
   }
 
   // Visitors walking in on Sam
@@ -256,7 +326,7 @@ export class Interior extends Phaser.Scene {
     this.samTag = this.add.text(0, 0, this.view.name, { fontFamily: '"Pixelify Sans"', fontSize: '8px', color: '#f3e5c2', stroke: '#645552', strokeThickness: 2, resolution: 4 }).setOrigin(0.5, 1).setDepth(100004);
     this.sam = act;
     this.actors.push(act);
-    const run = { cancelled: false, items: [] };
+    const run = { cancelled: false, items: [], pending: new Set() };
     (async () => {
       try { await this.cfg.script(this.runView(run), act, { keepGoing: this.keepGoingFor(this.time.now) }); } catch (e) { if (e !== CANCEL) console.error(e); }
       if (this.dead) return;
@@ -308,8 +378,9 @@ export class Interior extends Phaser.Scene {
         vx /= len; vy /= len;
         const nx = p.x + vx * SPEED * dt, ny = p.y + vy * SPEED * dt;
         let moved = false;
-        if (!this.blocked(nx, p.y)) { p.x = nx; moved = true; }
-        if (!this.blocked(p.x, ny)) { p.y = ny; moved = true; }
+        const stuckIn = this.blocked(p.x, p.y); // started inside something: let them walk out
+        if ((stuckIn || !this.blocked(nx, p.y)) && !this.bodyInTheWay(p, nx, p.y)) { p.x = nx; moved = true; }
+        if ((stuckIn || !this.blocked(p.x, ny)) && !this.bodyInTheWay(p, p.x, ny)) { p.y = ny; moved = true; }
         if (!moved) this.moveTarget = null;
         pa.facing = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : (vy > 0 ? 'down' : 'up');
         p.play(`walk-${pa.facing}`, true);
@@ -318,11 +389,19 @@ export class Interior extends Phaser.Scene {
       } else if (!this.playerRun && !pa.path?.length) {
         p.play(`idle-${pa.facing}`, true);
         // Idle inside: the character does what people do here
-        if (this.world.owner && this.cfg.script && (this.idle += dt) > IDLE_BEFORE_AUTO) { this.idle = 0; this.runPlayerScript({ auto: true }); }
+        const fits = PURPOSE[this.id] && PURPOSE[this.id] === this.world.view.state;
+        if (this.world.owner && this.cfg.script && (this.idle += dt) > (fits ? IDLE_BEFORE_AUTO : ACTION_COOLDOWN)) { this.idle = 0; this.runPlayerScript({ auto: true }); }
       }
     }
 
-    const it = this.playerRun ? null : this.nearest();
+    if (this.playerRun) {
+      const m = Object.values(this.machines).find((x) => x.busy === pa);
+      const text = m ? 'Get off' : pa.seat ? 'Stand up' : 'Stop';
+      if (this.lastRunPrompt !== text) { this.lastRunPrompt = text; this.lastNear = undefined; this.game.events.emit('prompt', { text, action: true }); }
+      return;
+    }
+    this.lastRunPrompt = null;
+    const it = this.nearest();
     if (it !== this.lastNear || (it && (this.tick = (this.tick || 0) + dt) > 0.5)) {
       this.tick = 0; this.lastNear = it;
       this.game.events.emit('prompt', it ? { ...it.label(), action: !!it.action } : null);
@@ -341,7 +420,8 @@ export class Interior extends Phaser.Scene {
   }
 
   interact() {
-    if (this.world.inputLocked || this.leaving || this.playerRun) return;
+    if (this.world.inputLocked || this.leaving) return;
+    if (this.playerRun) { this.takeControl(); sfx.blip(); return; } // E: get off the machine / stand up
     this.idle = 0;
     this.nearest()?.action?.();
   }

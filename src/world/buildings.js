@@ -119,7 +119,7 @@ export const BUILDINGS = {
       s.counterBar('counter-48', 6, 3.5);
       s.add.image(6 * T, 2.5 * T, 'pastry-case').setOrigin(0.5, 1).setDepth(3.5 * T + 3);
       s.staffAt('baker', 6, 2.1, PAL.yellowLight, ['"Fresh out of the oven!"', '"The croissants are folded 27 times."']);
-      s.table(3, 5.6); s.table(9.2, 5.8); s.table(6, 6.6);
+      s.table(3, 5.6); s.table(9.2, 5.8); s.table(3.6, 3.9);
       s.piece('plantSmall', 1.2, 6.6); s.piece('lampG', 8, 2.4);
       s.spots = { front: { x: 6 * T, y: 4.4 * T }, counterTop: { x: 6.6 * T, y: 2.3 * T } };
       s.interactables.push({ x: 6 * T, y: 4.2 * T, r: 18, label: () => ({ text: s.world.owner ? 'Buy a croissant' : 'The counter' }), action: s.world.owner ? () => s.playerVisit() : null });
@@ -142,6 +142,10 @@ export const BUILDINGS = {
       s.piece('plantBig', 12.6, 2.6); s.piece('plantBig', 1.4, 2.6); s.piece('lampB', 12.6, 7.4);
       s.spots = { host: { x: 4.6 * T + 10, y: 8.1 * T }, pass: { x: 7 * T, y: 2.6 * T } };
       s.interactables.push({ x: 4.6 * T, y: 7.8 * T, r: 16, label: () => ({ text: s.world.owner ? 'Get a table' : 'The host stand' }), action: s.world.owner ? () => s.playerVisit() : null });
+    },
+    // Townsfolk: seated, then eat (the waiter is busy with you)
+    async npcScript(s, a, ctx) {
+      await sitAndEat(s, a, ctx, s.freeSeat(a), FOODS.restaurant, 'icon-plate');
     },
     async script(s, a, ctx) {
       const waiter = s.staff.waiter;

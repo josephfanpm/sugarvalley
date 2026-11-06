@@ -108,3 +108,10 @@ export function grassIndex(water, x, y, rnd, path) {
 export function rng(seed) {
   return () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
+
+/** Fence collider for one tile: covers the post and every side it connects to, so there are no gaps. */
+export function fenceCollider(px, py, { n, s, e, w }) {
+  const x0 = px + (w ? 0 : 4), x1 = px + (e ? 16 : 12);
+  const y0 = n ? py : py + 9, y1 = s ? py + 16 : py + 14;
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}

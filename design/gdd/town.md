@@ -16,7 +16,7 @@ Code: `src/world/town.js` (places, townsfolk, dog), `src/world/town-art.js` (spr
 | Steady Strength Gym | Weight bench outside; Coach Rowan |
 | Running track | Oval track with cones; a jogger always running laps |
 | Dog park | Fenced, at the bottom of town |
-| Dog house | Next to the veggie patch. The dog stays home and potters around it; it comes along only for walks (when high) and plays fetch near home. It pathfinds like everyone else, so it never crosses walls, fences or water. |
+| Dog house | Next to the veggie patch. The dog stays home and potters around it. Talk to it to pet it and go for a walk (on a leash); talk to it again to take it home. Your character also walks it when high, and plays fetch near home. |
 
 ## Inside the buildings
 
@@ -33,8 +33,12 @@ Every building can be entered (walk to its door). Rooms are themed and staffed; 
 
 - **How long:** eating lasts until the reading is back in range; the gym lasts until it's no longer
   high; urgent states end the visit. Visits outside those states are short (about 14 s).
-- **Control:** the owner's character walks in on its own when low or high, or after 7 idle seconds
-  inside. Any movement takes control back.
+- **Control:** the owner's character walks in on its own when low or high. Inside, it starts the visit
+  after 7 idle seconds if the place fits the range (food when low, gym when high), otherwise after 5
+  minutes. Any movement takes control back; **E** gets off a machine or stands up from a table.
+- **Staff work inside** (barista, baker, chef and waiter, coach). **Townsfolk** (Ada, Theo, Wren, Milo,
+  Ivy) wander town and go into the café, bakery, restaurant or gym for a minute or so; if you're inside,
+  you'll see them ordering, eating and using machines.
 - **Visitors:** Sam walks into the building and disappears inside; a visitor who follows them in sees
   Sam's visit play out (with a name tag).
 - **Paying is cosmetic.** A coin bubble and a register sound, nothing spent: getting food for a low
@@ -44,6 +48,13 @@ Every building can be entered (walk to its door). Rooms are themed and staffed; 
 
 After 7 idle seconds the owner's character takes over (any input hands control back); visitors
 always see Sam doing these, with thought bubbles showing what they're up to.
+
+**Pacing:** one action every 5 minutes. A change of glucose range (urgent low, low, in range, high,
+urgent high) starts a new action right away. Eating when low and the gym when high last until the
+range changes.
+
+**Collisions:** people, animals and the dog can't overlap each other or walk through walls, fences,
+furniture or water (indoors too); routes go around things on a pathfinding grid.
 
 **In range: real work first (owner only, earns sunlight)**
 1. Collect sunlight at the Sun Well (when 15+ is waiting, or gifts)

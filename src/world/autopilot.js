@@ -23,6 +23,8 @@ const PLAN = {
   stale: [['nap', 1]],
 };
 const SPEED_MUL = { low: 0.75, high: 1.25, urgent_low: 0.6, urgent_high: 0.7, stale: 0.8 };
+// Between actions the character just hangs out. A new glucose range starts a new action right away.
+export const ACTION_COOLDOWN = 300;
 
 function pickWeighted(list) {
   const total = list.reduce((a, [, w]) => a + w, 0);
@@ -31,23 +33,24 @@ function pickWeighted(list) {
   return list[0][0];
 }
 
-// ---------- grid A* ----------
-export function findPath(walk, from, to) {
-  const key = (x, y) => y * COLS + x;
-  const inb = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
+// ---------- grid A* (any grid: the valley in 16-px tiles, interiors in 8-px cells) ----------
+export function findPathGrid(walk, from, to) {
+  const rows = walk.length, cols = walk[0].length;
+  const key = (x, y) => y * cols + x;
+  const inb = (x, y) => x >= 0 && y >= 0 && x < cols && y < rows;
   if (!inb(to.x, to.y) || !walk[to.y][to.x]) return null;
-  const open = [{ x: from.x, y: from.y, g: 0, f: 0 }];
+  const open = [{ x: from.x, y: from.y, f: 0 }];
   const came = new Map(), g = new Map([[key(from.x, from.y), 0]]);
   const h = (x, y) => Math.hypot(x - to.x, y - to.y);
   let guard = 0;
-  while (open.length && guard++ < 4000) {
+  while (open.length && guard++ < 6000) {
     let bi = 0;
     for (let i = 1; i < open.length; i++) if (open[i].f < open[bi].f) bi = i;
     const cur = open.splice(bi, 1)[0];
     if (cur.x === to.x && cur.y === to.y) {
       const path = [];
       let k = key(cur.x, cur.y);
-      while (k !== undefined) { path.unshift({ x: k % COLS, y: Math.floor(k / COLS) }); k = came.get(k); }
+      while (k !== undefined) { path.unshift({ x: k % cols, y: Math.floor(k / cols) }); k = came.get(k); }
       return path;
     }
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
@@ -58,10 +61,26 @@ export function findPath(walk, from, to) {
       if (ng < (g.get(key(nx, ny)) ?? Infinity)) {
         g.set(key(nx, ny), ng);
         came.set(key(nx, ny), key(cur.x, cur.y));
-        open.push({ x: nx, y: ny, g: ng, f: ng + h(nx, ny) });
+        open.push({ x: nx, y: ny, f: ng + h(nx, ny) });
       }
     }
   }
+  return null;
+}
+export const findPath = findPathGrid;
+
+/**
+ * One collision-checked step toward (tx, ty) for a body at (x, y). Slides along walls; returns the
+ * new position, or null if fully blocked. `blocked(x, y)` is the scene's check for this body.
+ */
+export function stepToward(x, y, tx, ty, step, blocked) {
+  const dx = tx - x, dy = ty - y, d = Math.hypot(dx, dy);
+  if (d < 0.001) return { x, y, arrived: true };
+  const s = Math.min(step, d);
+  const nx = x + (dx / d) * s, ny = y + (dy / d) * s;
+  if (!blocked(nx, ny)) return { x: nx, y: ny, arrived: s >= d };
+  if (Math.abs(dx) > 0.01 && !blocked(nx, y)) return { x: nx, y, arrived: false };
+  if (Math.abs(dy) > 0.01 && !blocked(x, ny)) return { x, y: ny, arrived: false };
   return null;
 }
 
@@ -85,7 +104,8 @@ export class Actor {
     const p = findPath(this.s.walk, from, to);
     if (!p) return false;
     this.path = p.slice(1).map((t) => ({ x: t.x * TILE + 8, y: t.y * TILE + 12 }));
-    if (this.path.length) { const last = this.path[this.path.length - 1]; last.x = px; last.y = py; }
+    // finish on the exact spot (a seat, a door, a counter) — the last short hop may step onto it
+    if (this.path.length) this.path.push({ x: px, y: py, final: true });
     return true;
   }
 
@@ -108,14 +128,24 @@ export class Actor {
   }
   clearBubble() { this.bubble?.destroy(); this.bubble = null; }
 
-  /** Walk along the path. Returns true while moving. */
+  /** Walk along the path, colliding with the world and other bodies. Returns true while moving. */
   walk(dt, speedMul = 1) {
     if (!this.path?.length) return false;
     const t = this.path[0];
-    const dx = t.x - this.x, dy = t.y - this.y, d = Math.hypot(dx, dy);
+    const dx = t.x - this.x, dy = t.y - this.y;
     const step = BASE_SPEED * speedMul * dt;
-    if (d <= step) { this.sprite.x = t.x; this.sprite.y = t.y; this.path.shift(); }
-    else { this.sprite.x += (dx / d) * step; this.sprite.y += (dy / d) * step; }
+    // The last hop onto an exact spot (seat, machine, door) may enter furniture; people still block.
+    const check = (x, y) => (this.s.blockedFor ? this.s.blockedFor(this, x, y, { staticOk: t.final && Math.hypot(t.x - x, t.y - y) < 14 }) : false);
+    const r = stepToward(this.x, this.y, t.x, t.y, step, check);
+    if (r) {
+      this.sprite.x = r.x; this.sprite.y = r.y; this.stuck = 0;
+      if (r.arrived) this.path.shift();
+    } else if ((this.stuck = (this.stuck || 0) + dt) > 0.7) {
+      // Someone's in the way or a corner is tight: skip this waypoint (or give up on the last one).
+      this.stuck = 0;
+      this.path.shift();
+      this.blockedOut = (this.blockedOut || 0) + 1;
+    }
     this.face(dx, dy);
     this.sprite.play(`walk-${this.facing}`, true);
     this.sprite.anims.timeScale = speedMul;
@@ -137,9 +167,9 @@ export class Autopilot {
     this.phase = 'idle'; this.wait = 0.5; this.current = null; this.lastState = null; this.label = null; this.last = null;
   }
 
-  reset() {
+  reset({ cooldown = false } = {}) {
     this.current?.end?.();
-    this.a.stop(); this.phase = 'idle'; this.wait = 0.4; this.current = null; this.label = null;
+    this.a.stop(); this.phase = 'idle'; this.wait = cooldown ? ACTION_COOLDOWN : 0.4; this.current = null; this.label = null;
     this.a.sprite.anims.timeScale = 1;
     this.tweenStop();
   }
@@ -163,7 +193,7 @@ export class Autopilot {
       act.tick?.(dt);
       if ((this.wait -= dt) <= 0) {
         act.end?.(); a.clearBubble(); this.tweenStop();
-        this.phase = 'idle'; this.wait = 0.6 + Math.random() * 1.2; a.sprite.anims.timeScale = 1; this.current = null; this.label = null;
+        this.phase = 'idle'; this.wait = ACTION_COOLDOWN; a.sprite.anims.timeScale = 1; this.current = null; this.label = null;
       }
     } else if ((this.wait -= dt) <= 0) {
       this.start(state);
@@ -297,7 +327,7 @@ export class Autopilot {
           tick: () => { if (Math.random() < 0.006) { a.bubbleIcon('icon-fish'); s.drops.explode(5, spot.x, spot.y + 12); } } };
       }
       case 'chat': {
-        const folk = s.folk || [];
+        const folk = (s.folk || []).filter((f) => !f.inside && f.sprite.visible);
         const f = folk[Math.floor(Math.random() * folk.length)];
         if (!f) return null;
         const first = f.name.split(' ')[0];

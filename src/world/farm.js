@@ -1,7 +1,7 @@
 // Farm content for the Forest hamlet: coop, veggie patch, campfire kitchen, pasture, orchard,
 // pond dock, Maple's notice board and the Garden Journal box. Each is a restorable that unlocks
 // a daily activity (design/gdd/farm.md).
-import { TILE } from './terrain.js';
+import { TILE, fenceCollider } from './terrain.js';
 import { PAL, hex } from '../data/palette.js';
 import { CHORES, suggestRecipe, RESTORE_BY_ID, ITEMS } from '../data/valley-rules.js';
 
@@ -140,7 +140,7 @@ function buildPasture(s) {
     for (const k of set) {
       const [x, y] = k.split(',').map(Number);
       const e = set.has(`${x + 1},${y}`), w = set.has(`${x - 1},${y}`);
-      s.colliders.push({ x: T(x) + (w ? 0 : 5), y: T(y) + 10, w: e && w ? 16 : 7 + (e ? 4 : 0) + (w ? 4 : 0), h: 4 });
+      s.colliders.push(fenceCollider(T(x), T(y), { n: set.has(`${x},${y - 1}`), s: set.has(`${x},${y + 1}`), e, w }));
     }
     s.rebuildWalkGrid();
   };

@@ -1,12 +1,12 @@
 // The Forest hamlet: terrain, props, player, animals, lighting, restoration and the Garden of Days.
-import { TILE, COLS, ROWS, buildWater, buildPaths, floodEast, grassIndex, rng } from '../world/terrain.js';
+import { TILE, COLS, ROWS, buildWater, buildPaths, floodEast, grassIndex, rng, fenceCollider } from '../world/terrain.js';
 import { buildCottage } from '../world/house.js';
 import { plantTexture } from '../world/plants.js';
 import { PAL, hex } from '../data/palette.js';
 import { GIFT_KINDS } from '../data/balance.js';
 import { RESTORE_BY_ID, nextRestorable, CHORES, suggestRecipe, ITEMS } from '../data/valley-rules.js';
 import { registerFrames, buildFarm, refreshFarmVisuals, SPOTS, ITEM_ICON } from '../world/farm.js';
-import { Actor, Autopilot } from '../world/autopilot.js';
+import { Actor, Autopilot, stepToward } from '../world/autopilot.js';
 import { buildTown, updateTown, Dog } from '../world/town.js';
 import { sfx, unlockAudio, ambience, music } from '../audio.js';
 import { Music } from '../music.js';
@@ -63,6 +63,7 @@ export class World extends Phaser.Scene {
     this.visited = { garden: false, pet: false };
     this.restorableAt = {};
     this.onRestore = {};
+    this.bodies = []; // everyone who takes up space: people, animals, the dog
     this.farmSprites = {};
     this.farm = this.view.farm || { inventory: {}, chores: {}, cookbook: {}, ripeness: 0, dishesToday: 0 };
     this.idle = 0;
@@ -441,7 +442,7 @@ export class World extends Phaser.Scene {
       const col = e && w ? 2 : e ? 1 : w ? 3 : 0;
       const by = y * TILE + 16;
       this.add.image(x * TILE + 8, by, 'fences', row * 4 + col).setOrigin(0.5, 1).setDepth(by - 2);
-      this.colliders.push({ x: x * TILE + (w ? 0 : 5), y: by - 6, w: e && w ? 16 : 7 + (e ? 4 : 0) + (w ? 4 : 0), h: 4 });
+      this.colliders.push(fenceCollider(x * TILE, y * TILE, { n, s, e, w }));
     }
     // Soil beds
     const bed = this.add.graphics().setDepth(-7);
@@ -579,6 +580,7 @@ export class World extends Phaser.Scene {
       const sh = this.add.image(x, y, 'shadow').setDepth(-4).setScale(kind === 'cow' ? 1.5 : 0.7, kind === 'cow' ? 1.2 : 0.8);
       const a = { s, sh, kind, home, wait: 1 + Math.random() * 3, target: null };
       this.animals.push(a);
+      this.addBody(s, kind === 'cow' ? 9 : 4);
       if (east) this.eastObjects.push(s, sh);
       if (kind === 'chicken') this.interactables.push({ x: 0, y: 0, r: 12, follow: a, label: () => ({ text: 'Pet the chicken' }), action: () => this.pet(a) });
       else this.interactables.push({
@@ -594,16 +596,23 @@ export class World extends Phaser.Scene {
     add('cow', 39 * TILE, 19.5 * TILE, { x: 39 * TILE, y: 19.8 * TILE, r: 30 }, true);
   }
 
+  /** A happy squash (never moves the animal, so it can't end up inside anything). */
+  squash(sprite) {
+    this.tweens.killTweensOf(sprite);
+    sprite.setScale(1);
+    this.tweens.add({ targets: sprite, scaleY: { from: 0.75, to: 1 }, scaleX: { from: 1.2, to: 1 }, duration: 260, ease: 'Back.easeOut' });
+  }
+
   petAnimal(a, quiet) {
     if (!quiet) sfx.cluck();
-    this.tweens.add({ targets: a.s, y: a.s.y - 4, duration: 120, yoyo: true, ease: 'Quad.easeOut' });
+    this.squash(a.s);
     this.hearts.explode(3, a.s.x, a.s.y - 14);
   }
 
   pet(a) {
     this.visited.pet = true;
     sfx.cluck();
-    this.tweens.add({ targets: a.s, y: a.s.y - 4, duration: 120, yoyo: true, ease: 'Quad.easeOut' });
+    this.squash(a.s);
     this.hearts.explode(3, a.s.x, a.s.y - 14);
   }
 
@@ -612,11 +621,12 @@ export class World extends Phaser.Scene {
       if (a.target) {
         const dx = a.target.x - a.s.x, dy = a.target.y - a.s.y, d = Math.hypot(dx, dy);
         const sp = a.kind === 'cow' ? 10 : 18;
-        if (d < 1.5) {
+        const r = d < 1.5 ? null : stepToward(a.s.x, a.s.y, a.target.x, a.target.y, sp * dt, (x, y) => this.blockedFor(a.s, x, y));
+        if (d < 1.5 || !r) {
           a.target = null; a.wait = 1.5 + Math.random() * 4;
           a.s.play(`${a.kind === 'cow' ? 'cow' : 'chick'}-idle`, true);
         } else {
-          a.s.x += (dx / d) * sp * dt; a.s.y += (dy / d) * sp * dt;
+          a.s.x = r.x; a.s.y = r.y;
           a.s.setFlipX(a.kind === 'cow' ? dx < 0 : dx > 0);
         }
       } else if ((a.wait -= dt) <= 0) {
@@ -652,7 +662,30 @@ export class World extends Phaser.Scene {
     this.facing = 'down';
     this.player.play('idle-down');
     this.lights.push({ x: 0, y: 0, r: 26, follow: this.player, on: () => true, soft: true });
+    // the dog on a leash and its walker don't bump into each other
+    this.addBody(this.player, 5, (o) => o === this.dog?.sprite && (this.dogWalk || this.selfPilot?.leash));
   }
+
+  /** Can `who` stand at (x, y)? Walls, water and furniture, plus other people and animals. */
+  blockedFor(who, x, y, { staticOk = false } = {}) {
+    if (!staticOk && this.blocked(x, y, 4, 2)) return true;
+    return this.bodyInTheWay(who, x, y);
+  }
+
+  bodyInTheWay(who, x, y) {
+    const me = who?.sprite || who;
+    for (const b of this.bodies) {
+      const o = b.sprite;
+      if (o === me || !o.visible || !o.active || b.ignores?.(me)) continue;
+      const rx = b.r + 5, ry = (b.r + 5) * 0.55;
+      const inside = (px, py) => ((px - o.x) / rx) ** 2 + ((py - o.y) / ry) ** 2 < 1;
+      // Block moving into someone; always allow moving apart (no one gets stuck overlapping).
+      if (inside(x, y) && Math.hypot(x - o.x, y - o.y) < Math.hypot(me.x - o.x, me.y - o.y)) return true;
+    }
+    return false;
+  }
+
+  addBody(sprite, r = 5, ignores) { this.bodies.push({ sprite, r, ignores }); }
 
   blocked(x, y, hw = 5, hh = 3) {
     const pts = [[x - hw, y - hh], [x + hw, y - hh], [x - hw, y + 1], [x + hw, y + 1]];
@@ -699,8 +732,9 @@ export class World extends Phaser.Scene {
       vx /= len; vy /= len;
       const nx = p.x + vx * SPEED * dt, ny = p.y + vy * SPEED * dt;
       let moved = false;
-      if (!this.blocked(nx, p.y)) { p.x = nx; moved = true; }
-      if (!this.blocked(p.x, ny)) { p.y = ny; moved = true; }
+      const stuckIn = this.blocked(p.x, p.y); // started inside something: let them walk out
+      if ((stuckIn || !this.blocked(nx, p.y)) && !this.bodyInTheWay(p, nx, p.y)) { p.x = nx; moved = true; }
+      if ((stuckIn || !this.blocked(p.x, ny)) && !this.bodyInTheWay(p, p.x, ny)) { p.y = ny; moved = true; }
       if (!moved && this.moveTarget) this.moveTarget = null;
       this.facing = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : (vy > 0 ? 'down' : 'up');
       p.play(`walk-${this.facing}`, true);
@@ -865,6 +899,7 @@ export class World extends Phaser.Scene {
     this.mapleShadow = this.add.image(0, 0, 'shadow').setDepth(-4).setScale(0.8, 0.9);
     this.maple.play('idle-down');
     this.mapleActor = new Actor(this, this.maple, this.mapleShadow);
+    this.addBody(this.maple, 5);
     this.mapleActor.sync();
     this.mapleHome = { x: x * TILE, y: y * TILE };
     this.mapleWait = 3;
@@ -930,12 +965,13 @@ export class World extends Phaser.Scene {
     this.samShadow = this.add.image(0, 0, 'shadow').setDepth(-4).setScale(0.8, 0.9);
     this.samTag = this.add.text(0, 0, this.view.name, { fontFamily: '"Pixelify Sans"', fontSize: '8px', color: '#f3e5c2', stroke: '#645552', strokeThickness: 2, resolution: 4 }).setOrigin(0.5, 1).setDepth(100004);
     this.samActor = new Actor(this, this.sam, this.samShadow);
+    this.addBody(this.sam, 5, (o) => o === this.dog?.sprite && this.samPilot?.leash);
     this.samPilot = new Autopilot(this, this.samActor, { name: this.view.name });
     this.lights.push({ x: 0, y: 0, r: 22, follow: this.sam, on: () => true, soft: true });
     this.interactables.push({
       x: 0, y: 0, r: 16, follow: { s: this.sam },
       label: () => ({ text: `Wave at ${this.view.name}` }),
-      action: () => { this.visited.sam = true; this.samActor.bubbleIcon('gift-heart'); this.tweens.add({ targets: this.sam, y: this.sam.y - 5, duration: 140, yoyo: true }); sfx.open(); },
+      action: () => { this.visited.sam = true; this.samActor.bubbleIcon('gift-heart'); this.squash(this.sam); sfx.open(); },
     });
   }
 
@@ -947,17 +983,37 @@ export class World extends Phaser.Scene {
     this.colliders.push({ x: home.x - 9, y: home.y - 8, w: 18, h: 7 });
     this.rebuildWalkGrid();
     this.dog = new Dog(this, home);
+    this.dogWalk = false;
+    const walker = () => (this.owner ? this.player : this.sam);
+    this.addBody(this.dog.sprite, 4, (o) => o === walker() && (this.dogWalk || (this.owner ? this.selfPilot?.leash : this.samPilot?.leash)));
     this.interactables.push({
       x: 0, y: 0, r: 14, follow: { s: this.dog.sprite },
-      label: () => ({ text: 'Pet the dog' }),
-      action: () => { sfx.cluck(); this.hearts.explode(4, this.dog.x, this.dog.y - 12); this.tweens.add({ targets: this.dog.sprite, y: this.dog.y - 5, duration: 120, yoyo: true }); },
+      label: () => (!this.owner ? { text: 'Pet the dog' } : this.dogWalk ? { text: 'Take the dog home' } : { text: 'Pet the dog and go for a walk' }),
+      action: () => this.interactDog(),
     });
   }
+
+  interactDog() {
+    const d = this.dog, p = this.player;
+    // turn to the dog and pet it
+    this.facing = Math.abs(d.x - p.x) > Math.abs(d.y - p.y) ? (d.x > p.x ? 'right' : 'left') : (d.y > p.y ? 'down' : 'up');
+    p.play(`idle-${this.facing}`, true);
+    d.sit(1.2);
+    this.squash(d.sprite);
+    this.hearts.explode(5, d.x, d.y - 12);
+    sfx.cluck();
+    if (!this.owner) return;
+    if (this.dogWalk) { this.endDogWalk(); this.toast('The dog trots home.'); return; }
+    this.dogWalk = true;
+    this.time.delayedCall(500, () => this.toast('Walkies! Talk to the dog again to take it home.'));
+  }
+
+  endDogWalk() { this.dogWalk = false; }
 
   updateDog(dt) {
     const owner = this.owner ? this.player : this.sam;
     const pilot = this.owner ? (this.piloting ? this.selfPilot : null) : this.samPilot;
-    this.dog.update(dt, owner, { leash: !!pilot?.leash, napping: this.view.state === 'stale' });
+    this.dog.update(dt, owner, { leash: !!pilot?.leash || (this.owner && this.dogWalk), napping: this.view.state === 'stale' && !this.dogWalk });
   }
 
   throwBall(actor, spot) {
@@ -1009,6 +1065,7 @@ export class World extends Phaser.Scene {
   enterBuilding(id, { auto = false } = {}) {
     if (this.inside) return;
     this.inside = id;
+    this.endDogWalk();
     sfx.open();
     this.game.events.emit('prompt', null);
     this.cameras.main.fadeOut(250, 20, 16, 30);
@@ -1027,7 +1084,7 @@ export class World extends Phaser.Scene {
     this.player.setPosition(d.x, d.y + 4);
     this.facing = 'down';
     this.player.play('idle-down');
-    this.selfPilot?.reset();
+    this.selfPilot?.reset({ cooldown: auto });
     // Came out on their own: keep doing their own thing. Walked out by hand: back in control.
     if (auto) { this.piloting = true; this.idle = 99; } else { this.idle = 0; this.piloting = false; }
     this.cameras.main.fadeIn(300, 20, 16, 30);

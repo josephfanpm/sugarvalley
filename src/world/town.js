@@ -1,11 +1,11 @@
 // The town south of the hamlet: coffee shop, bakery, restaurant, gym, market stalls, fountain plaza,
 // running track and dog park, plus townsfolk and the owner's dog. Exposes named spots the autopilot
 // walks to (design/gdd/town.md).
-import { TILE } from './terrain.js';
+import { TILE, fenceCollider } from './terrain.js';
 import { PAL, hex } from '../data/palette.js';
 import { buildCottage } from './house.js';
 import { canvasTexture, px } from './pixels.js';
-import { Actor, findPath } from './autopilot.js';
+import { Actor, findPath, stepToward } from './autopilot.js';
 import { sfx } from '../audio.js';
 
 const T = (n) => n * TILE;
@@ -17,14 +17,18 @@ const SHOPS = [
   { id: 'gym', name: 'Steady Strength Gym', x: 24, bottom: 49.6, W: 5, awning: [PAL.blueDark, '#fbf4df'], icon: 'icon-dumbbell' },
 ];
 
+// Shop staff work inside their shops (see world/buildings.js). Out here: stall keepers and townsfolk
+// who wander, then go into the café, bakery, restaurant or gym for a while and come back out.
 const FOLK = [
-  { id: 'barista', name: 'Pip the barista', tint: PAL.peachLight, at: [6.2, 34.9], lines: ['"Cocoa or coffee? Either way, take a seat!"', '"Mornings are better with a warm mug."', '"The window seat gets the best sunlight."'] },
-  { id: 'baker', name: 'Juniper the baker', tint: PAL.yellowLight, at: [12.6, 34.9], lines: ['"Fresh bread just came out!"', '"I count carbs like I count loaves: carefully."', '"Croissants are folded 27 times. Patience!"'] },
-  { id: 'chef', name: 'Basil the chef', tint: '#fbf4df', at: [23.4, 34.9], lines: ['"Tonight\'s special: whatever the valley grew!"', '"A good meal is a good friend."', '"Table for one? Right this way."'] },
-  { id: 'coach', name: 'Coach Rowan', tint: PAL.leafLight, at: [26.4, 50.8], lines: ['"Every lap counts!"', '"Stretch first, thank me later."', '"Water break! Hydration is a team sport."'] },
   { id: 'florist', name: 'Fern the florist', tint: PAL.violetLight, at: [20.6, 45.4], lines: ['"Sunflowers today. They match the weather."', '"Flowers make any day a good day."'] },
   { id: 'vendor', name: 'Mo at the juice stand', tint: PAL.roseLight, at: [6, 45.4], lines: ['"Juice for when you need a lift!"', '"Apple, orange, or grape?"'] },
+  { id: 'ada', name: 'Ada', tint: PAL.peachLight, at: [12.5, 38.2], visitor: true, lines: ['"Lovely day for a walk!"', '"Have you tried the croissants?"'] },
+  { id: 'theo', name: 'Theo', tint: PAL.leafLight, at: [19, 39], visitor: true, lines: ['"Off to the gym in a bit."', '"The fountain sounds nice today."'] },
+  { id: 'wren', name: 'Wren', tint: PAL.yellowLight, at: [9, 41.5], visitor: true, lines: ['"Valley Kitchen has the best soup."', '"I saw your dog at the park!"'] },
+  { id: 'milo', name: 'Milo', tint: '#fbf4df', at: [22, 41.5], visitor: true, lines: ['"Hot cocoa weather, right?"', '"Have a good one!"'] },
+  { id: 'ivy', name: 'Ivy', tint: PAL.blueLight, at: [15.5, 43], visitor: true, lines: ['"Just finished a workout!"', '"The bakery smells amazing."'] },
 ];
+const VISIT_PLACES = ['coffee', 'bakery', 'restaurant', 'gym'];
 
 /** Awning strip for a shop wall, W tiles wide. */
 function awningTexture(scene, key, W, [a, b]) {
@@ -108,7 +112,7 @@ export function buildTown(s) {
     const row = so && n ? 1 : so ? 0 : n ? 2 : 3, col = e && w ? 2 : e ? 1 : w ? 3 : 0;
     const by = T(y) + 16;
     s.add.image(T(x) + 8, by, 'fences', row * 4 + col).setOrigin(0.5, 1).setDepth(by - 2);
-    s.colliders.push({ x: T(x) + (w ? 0 : 5), y: by - 6, w: e && w ? 16 : 7 + (e ? 4 : 0) + (w ? 4 : 0), h: 4 });
+    s.colliders.push(fenceCollider(T(x), T(y), { n, s: so, e, w }));
   }
   spots.dogPark = [[24, 52.6], [26.6, 53.4], [26, 55.2], [22, 55.2], [21.4, 53.4], [24, 52.6]].map(([x, y]) => ({ x: T(x), y: T(y) }));
   spots.dogWalk = [[16.5, 14.6], [15.6, 22], [15.6, 30], [15.5, 41.5], [24, 50.6], [24, 53.6], [15.5, 45.5], [15.6, 30], [15.6, 20]].map(([x, y]) => ({ x: T(x), y: T(y) }));
@@ -121,9 +125,10 @@ export function buildTown(s) {
     sp.play('idle-down');
     const actor = new Actor(s, sp, sh);
     actor.sync();
-    const npc = { ...f, sprite: sp, actor, home: { x: sp.x, y: sp.y }, wait: 2 + Math.random() * 4, said: 0 };
+    s.addBody(sp, 5);
+    const npc = { ...f, sprite: sp, actor, home: { x: sp.x, y: sp.y }, wait: 2 + Math.random() * 4, said: 0, visitIn: 10 + Math.random() * 40 };
     s.interactables.push({
-      x: 0, y: 0, r: 14, follow: { s: sp },
+      x: 0, y: 0, r: 14, follow: { s: sp }, enabled: () => sp.visible,
       label: () => ({ text: `Chat with ${f.name}` }),
       action: () => {
         actor.faceToward(s.player.x, s.player.y); sp.play(`idle-${actor.facing}`);
@@ -137,19 +142,45 @@ export function buildTown(s) {
   // A jogger who always runs the track
   const jog = s.add.sprite(spots.track[0].x, spots.track[0].y, 'player').setOrigin(0.5, 32 / 48).setTint(hex(PAL.blue));
   const jogActor = new Actor(s, jog, s.add.image(0, 0, 'shadow').setDepth(-4).setScale(0.8, 0.9));
+  s.addBody(jog, 5);
   s.jogger = { actor: jogActor, i: 0 };
 
   s.town = { spots };
   return spots;
 }
 
+/** Townsfolk inside a building right now (for interiors to show). */
+export function folkInside(s, id) { return s.folk.filter((f) => f.inside === id); }
+
 export function updateTown(s, dt) {
+  const now = Date.now();
   for (const f of s.folk) {
     const a = f.actor;
-    if (a.path?.length) a.walk(dt, 0.5);
-    else {
+    // inside a building: come back out when the visit is over
+    if (f.inside) {
+      if (now >= f.until) {
+        const door = s.town.spots[f.inside];
+        f.inside = null; f.heading = null;
+        a.sprite.setPosition(door.x, door.y + 4); a.sprite.setVisible(true); a.shadow?.setVisible(true);
+        f.visitIn = 40 + Math.random() * 80;
+        a.goTo(f.home.x, f.home.y);
+      }
+      continue;
+    }
+    if (a.path?.length) {
+      a.walk(dt, 0.5);
+      if (!a.path.length && f.heading) {
+        // reached the door: go in for a while
+        f.inside = f.heading; f.until = now + (40 + Math.random() * 50) * 1000;
+        a.sprite.setVisible(false); a.shadow?.setVisible(false); a.clearBubble();
+      }
+    } else {
       a.sprite.play(`idle-${a.facing}`, true);
-      if ((f.wait -= dt) <= 0) {
+      if (f.visitor && (f.visitIn -= dt) <= 0) {
+        const id = VISIT_PLACES[Math.floor(Math.random() * VISIT_PLACES.length)];
+        const door = s.town.spots[id];
+        if (door && a.goTo(door.x, door.y - 2)) f.heading = id; else f.visitIn = 10;
+      } else if ((f.wait -= dt) <= 0) {
         f.wait = 5 + Math.random() * 7;
         a.goTo(f.home.x + (Math.random() * 28 - 14), f.home.y + (Math.random() * 10 - 2));
       }
@@ -192,6 +223,8 @@ export class Dog {
     return true;
   }
 
+  sit(sec) { this.sitFor = sec; this.sprite.setTexture('dog-sit'); }
+
   fetch(spot, onFetched) { this.mode = 'fetch'; this.onFetched = onFetched; if (!this.goTo(spot.x, spot.y)) { onFetched?.(); this.mode = 'home'; } }
 
   update(dt, owner, { leash = false, napping = false } = {}) {
@@ -199,7 +232,8 @@ export class Dog {
     if (leash && owner) {
       if (this.mode !== 'walk') { this.mode = 'walk'; this.repath = 0; }
       const d = Math.hypot(owner.x - this.x, owner.y - this.y);
-      if ((this.repath -= dt) <= 0 && d > 20) { this.repath = 0.35; this.goTo(owner.x - 12, owner.y + 2); }
+      // Head for the walker's own spot (never a point beside them, which could be over a fence).
+      if ((this.repath -= dt) <= 0 && d > 20) { this.repath = 0.35; this.goTo(owner.x, owner.y); }
       if (d <= 16) this.path = null;
     } else if (this.mode === 'walk') {
       this.mode = 'home'; this.goTo(this.home.x + 14, this.home.y + 10);
@@ -215,19 +249,22 @@ export class Dog {
 
     // move along the path
     let moving = false;
-    if (this.path?.length) {
-      const t = this.path[0], dx = t.x - this.x, dy = t.y - this.y, d = Math.hypot(dx, dy);
+    this.sitFor = (this.sitFor || 0) - dt; // sitting to be petted
+    if (this.path?.length && !(this.sitFor > 0)) {
+      const t = this.path[0], dx = t.x - this.x;
       const speed = this.mode === 'fetch' ? 100 : this.mode === 'walk' ? 70 : 34;
-      const step = speed * dt;
-      if (d <= step) { this.sprite.x = t.x; this.sprite.y = t.y; this.path.shift(); }
-      else { this.sprite.x += (dx / d) * step; this.sprite.y += (dy / d) * step; }
-      if (Math.abs(dx) > 0.5) this.sprite.setFlipX(dx < 0);
-      moving = true;
+      const r = stepToward(this.x, this.y, t.x, t.y, speed * dt, (x, y) => this.s.blockedFor(this.sprite, x, y));
+      if (r) {
+        this.sprite.x = r.x; this.sprite.y = r.y; this.stuck = 0;
+        if (r.arrived) this.path.shift();
+        if (Math.abs(dx) > 0.5) this.sprite.setFlipX(dx < 0);
+        moving = true;
+      } else if ((this.stuck = (this.stuck || 0) + dt) > 0.6) { this.stuck = 0; this.path.shift(); }
     }
     if (moving) {
       this.idle = 0;
       if ((this.t += dt) > (this.mode === 'home' ? 0.2 : 0.12)) { this.t = 0; this.frame ^= 1; this.sprite.setTexture(`dog-${this.frame}`); }
-    } else if ((this.idle += dt) > 1.2) this.sprite.setTexture('dog-sit');
+    } else if (this.sitFor > 0 || (this.idle += dt) > 1.2) this.sprite.setTexture('dog-sit');
     else this.sprite.setTexture('dog-0');
     this.sprite.setDepth(this.y);
     this.shadow.setPosition(Math.round(this.x), Math.round(this.y));
