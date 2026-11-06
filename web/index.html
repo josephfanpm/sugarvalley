@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sugar Peek</title>
+  <meta name="description" content="Share a live pixel-art peek at your CGM with friends and family.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/ui.css">
+  <script src="/app/lib/theme.js"></script>
+  <style>
+    .nav { display: flex; align-items: center; gap: 12px; max-width: 1120px; margin: 0 auto; padding: 18px 24px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 15px; }
+    .brand-mark { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: linear-gradient(135deg, #6366f1, #a855f7); color: #fff; }
+    .nav .btn:first-of-type { margin-left: auto; }
+    .hero { max-width: 1120px; margin: 0 auto; padding: 48px 24px 72px; display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 500; color: var(--muted); }
+    .hero h1 { font-size: clamp(36px, 5vw, 56px); font-weight: 700; letter-spacing: -0.035em; line-height: 1.05; margin: 18px 0 16px; }
+    .hero h1 span { background: linear-gradient(90deg, #6366f1, #a855f7 60%, #ec4899); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .hero p.lead { font-size: 18px; color: var(--muted); max-width: 520px; line-height: 1.55; }
+    .cta { display: flex; gap: 10px; margin-top: 28px; flex-wrap: wrap; }
+    .works { margin-top: 28px; font-size: 13px; color: var(--muted); }
+    .works b { color: var(--text); font-weight: 600; }
+    .device { position: relative; aspect-ratio: 4 / 5; border-radius: 28px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 40px 80px -24px rgba(79, 70, 229, 0.35), var(--shadow-lg); }
+    .device canvas { width: 100%; height: 100%; display: block; }
+    .device .reading { position: absolute; left: 16px; top: 16px; padding: 12px 16px; border-radius: 14px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(8px); border: 1px solid var(--border); }
+    .device .reading .bg-value { font-size: 44px; }
+    .device .say { position: absolute; left: 16px; right: 16px; bottom: 16px; padding: 12px 14px; border-radius: 12px; background: rgba(9, 9, 11, 0.85); color: #fff; font-weight: 500; line-height: 1.45; }
+    .features { max-width: 1120px; margin: 0 auto; padding: 0 24px 80px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .feature { padding: 24px; }
+    .feature .fi { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); margin-bottom: 14px; }
+    .feature h3 { font-size: 16px; margin-bottom: 6px; }
+    .feature p { color: var(--muted); }
+    footer { border-top: 1px solid var(--border); padding: 24px; text-align: center; color: var(--muted); font-size: 13px; }
+    @media (max-width: 860px) { .hero { grid-template-columns: 1fr; gap: 32px; padding-top: 24px; } .features { grid-template-columns: 1fr; } .device { aspect-ratio: 4 / 3; } }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="brand"><span class="brand-mark" id="logo"></span> Sugar Peek</div>
+    <a class="btn ghost" href="/app/app.html#/overview">Sign in</a>
+    <a class="btn" href="/app/app.html">Get started</a>
+  </header>
+
+  <main class="hero">
+    <div>
+      <span class="eyebrow" id="eyebrow"></span>
+      <h1>Let the people who care <span>peek at your glucose.</span></h1>
+      <p class="lead">Your CGM becomes a live pixel character that lives in its own little world. Friends and family open one link to see how you’re doing. No account, no app to install.</p>
+      <div class="cta">
+        <a class="btn lg" href="/app/app.html" id="cta-start">Get started</a>
+        <a class="btn lg outline" href="/app/app.html#/overview">I already have an account</a>
+      </div>
+      <p class="works">Works with <b>Dexcom</b>, <b>FreeStyle Libre</b> and <b>Nightscout</b>.</p>
+    </div>
+    <div class="device">
+      <canvas id="hero-scene" aria-label="A pixel character walking through a forest"></canvas>
+      <div class="reading"><div class="row" style="align-items:baseline;gap:6px"><span class="bg-value s-in_range">112</span><span class="bg-value s-in_range" style="font-size:24px">→</span><span class="muted small">mg/dL</span></div>
+        <span class="state s-in_range"><span class="dot"></span>Normal</span></div>
+      <div class="say">Sam is alive and their blood sugar is 112 mg/dL. Suspiciously perfect.</div>
+    </div>
+  </main>
+
+  <section class="features" id="features"></section>
+  <footer>For peeking only. Sugar Peek is not a medical device and does not send alerts.</footer>
+
+  <script type="module">
+    import { icon } from '/app/lib/icons.js';
+    import { loadAssets, DEFAULT_AVATAR } from '/shared/avatar.js';
+    import { mountScene } from '/shared/scene.js';
+    document.getElementById('logo').innerHTML = icon('droplet', 16);
+    document.getElementById('eyebrow').innerHTML = `${icon('sparkles', 14)} Now with streaks, quests and pets`;
+    document.getElementById('cta-start').innerHTML = `Get started ${icon('arrow-right')}`;
+    document.getElementById('features').innerHTML = [
+      ['activity', 'A character that reacts', 'Snacks when low, goes for a run when high, naps when your sensor goes quiet. Urgent moments ask friends to check in.'],
+      ['trophy', 'Rewards for time in range', 'Set a daily goal. Good days earn coins, items and streaks, with bigger unlocks at 7, 14 and 30 days.'],
+      ['lock', 'Private by default', 'Credentials are encrypted. You choose what your link shows, and you can reset it any time.'],
+    ].map(([i, t, d]) => `<div class="card feature"><div class="fi">${icon(i, 18)}</div><h3>${t}</h3><p>${d}</p></div>`).join('');
+    const assets = await loadAssets('/sprites');
+    mountScene(document.getElementById('hero-scene'), assets, { avatar: { ...DEFAULT_AVATAR, t1d: { cgm: true, pump: true } }, theme: 'forest', state: 'in_range', gear: { pet: 'pet_cat', trail: 'trail_sparkles' } }, { scale: 3, focusY: 0.55 });
+  </script>
+</body>
+</html>

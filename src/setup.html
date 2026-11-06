@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2b2d42">
+  <link rel="manifest" href="/game/manifest.webmanifest">
+  <link rel="icon" href="/game/icons/favicon.png">
+  <link rel="apple-touch-icon" href="/game/icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Set up · Sugar Valley</title>
+  <style>
+    @font-face { font-family: 'Pixelify Sans'; src: url('fonts/pixelify-sans-400.woff2') format('woff2'); font-weight: 400; }
+    @font-face { font-family: 'Pixelify Sans'; src: url('fonts/pixelify-sans-600.woff2') format('woff2'); font-weight: 600; }
+    :root {
+      --bg: #2b2d42; --card: #f3e5c2; --card-2: #f7ebaa; --line: #aa7959; --line-dark: #754c60;
+      --ink: #645552; --muted: #90625d; --accent: #78a158; --accent-dark: #566560; --error: #a35b70; --field: #fbf4df;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+    main { max-width: 440px; margin: 0 auto; padding: 32px 16px 48px; }
+    h1 { font: 600 32px 'Pixelify Sans', monospace; color: var(--card); margin: 0 0 4px; letter-spacing: 0.5px; }
+    .tag { color: #cbe0de; margin: 0 0 24px; }
+    .card { background: var(--card); border: 3px solid var(--line-dark); box-shadow: inset 0 0 0 2px var(--line), 0 4px 0 #1d1e2e; border-radius: 6px; padding: 16px 18px; margin-bottom: 14px; }
+    .card.locked { opacity: 0.55; }
+    .head { display: flex; align-items: center; gap: 10px; }
+    .num { width: 26px; height: 26px; display: grid; place-items: center; background: var(--line); color: var(--card); font: 600 15px 'Pixelify Sans', monospace; border-radius: 4px; flex: none; }
+    .done .num { background: var(--accent); }
+    h2 { font: 600 20px 'Pixelify Sans', monospace; margin: 0; flex: 1; }
+    .summary { color: var(--muted); font-size: 14px; margin: 6px 0 0 36px; }
+    .edit { background: none; border: 0; color: var(--line-dark); font: inherit; font-size: 14px; text-decoration: underline; cursor: pointer; padding: 4px; }
+    form { margin-top: 14px; display: grid; gap: 12px; }
+    label { display: grid; gap: 4px; font-size: 14px; font-weight: 600; }
+    input, select { font: inherit; color: var(--ink); background: var(--field); border: 2px solid var(--line); border-radius: 4px; padding: 9px 10px; width: 100%; }
+    input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+    .seg { display: flex; gap: 6px; flex-wrap: wrap; }
+    .seg button { flex: 1; min-width: 88px; font: 600 15px 'Pixelify Sans', monospace; color: var(--ink); background: var(--field); border: 2px solid var(--line); border-radius: 4px; padding: 8px; cursor: pointer; }
+    .seg button[aria-pressed="true"] { background: var(--card-2); border-color: var(--line-dark); box-shadow: inset 0 -3px 0 var(--accent); }
+    .row { display: flex; gap: 10px; align-items: center; }
+    .row > * { flex: 1; }
+    .check { display: flex; gap: 10px; align-items: center; font-weight: 600; }
+    .check input { width: 20px; height: 20px; accent-color: var(--accent); }
+    .help { font-size: 13px; font-weight: 400; color: var(--muted); margin: 0; }
+    details summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--line-dark); }
+    details .row { margin-top: 10px; }
+    .btn { font: 600 18px 'Pixelify Sans', monospace; color: var(--card); background: var(--accent); border: 3px solid var(--accent-dark); border-radius: 4px; padding: 10px 16px; cursor: pointer; box-shadow: inset 0 -3px 0 var(--accent-dark); }
+    .btn:disabled { opacity: 0.6; cursor: wait; }
+    .btn.secondary { color: var(--ink); background: var(--field); border-color: var(--line); box-shadow: inset 0 -3px 0 var(--line); }
+    .error { color: var(--error); font-size: 14px; min-height: 0; margin: 0; }
+    .error:empty { display: none; }
+    .link { display: flex; gap: 8px; }
+    .link input { font-size: 13px; }
+    .enter { width: 100%; margin-top: 4px; }
+    .status { display: inline-flex; gap: 6px; align-items: center; }
+    .status::before { content: ''; width: 8px; height: 8px; border-radius: 2px; background: var(--accent); }
+    .status.err::before { background: var(--error); }
+    .signin { display: grid; gap: 8px; margin-top: 14px; justify-items: center; }
+    .apple { width: 300px; max-width: 100%; height: 40px; border-radius: 4px; border: 0; background: #000; color: #fff; font: 600 15px system-ui, sans-serif; cursor: pointer; }
+    .or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; margin: 14px 0 -2px; }
+    .or::before, .or::after { content: ''; flex: 1; height: 2px; background: var(--creamDark, #dcb98a); }
+    .foot a { color: #cbe0de; }
+    .foot { color: #8c92a8; font-size: 12px; text-align: center; margin-top: 20px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Sugar Valley</h1>
+    <p class="tag">Your readings bring the valley back to life.</p>
+
+    <section class="card" id="step-you">
+      <div class="head"><span class="num">1</span><h2>You</h2><button class="edit" hidden>Edit</button></div>
+      <p class="summary" hidden></p>
+      <div class="signin" id="signin" hidden>
+        <div id="google-btn"></div>
+        <button type="button" class="apple" id="apple-btn" hidden> Continue with Apple</button>
+        <p class="error" id="signin-error" role="alert"></p>
+      </div>
+      <p class="or" id="signin-or" hidden>or start without an account</p>
+      <form novalidate>
+        <label>Name <input name="displayName" maxlength="40" autocomplete="nickname" required></label>
+        <div><label id="unit-l">Units</label>
+          <div class="seg" role="group" aria-labelledby="unit-l" data-name="unit">
+            <button type="button" data-v="mgdl" aria-pressed="true">mg/dL</button><button type="button" data-v="mmol" aria-pressed="false">mmol/L</button>
+          </div></div>
+        <p class="error" role="alert"></p>
+        <button class="btn">Next</button>
+      </form>
+    </section>
+
+    <section class="card locked" id="step-cgm">
+      <div class="head"><span class="num">2</span><h2>CGM</h2><button class="edit" hidden>Edit</button></div>
+      <p class="summary" hidden></p>
+      <form novalidate hidden>
+        <div class="seg" role="group" aria-label="CGM" data-name="type">
+          <button type="button" data-v="dexcom" aria-pressed="true">Dexcom</button><button type="button" data-v="librelinkup" aria-pressed="false">Libre</button>
+          <button type="button" data-v="nightscout" aria-pressed="false">Nightscout</button><button type="button" data-v="demo" aria-pressed="false">Demo</button>
+        </div>
+        <div data-src="dexcom">
+          <div class="row"><label>Username <input name="username" autocomplete="username"></label></div>
+          <div class="row" style="margin-top:12px"><label>Password <input name="password" type="password" autocomplete="current-password"></label></div>
+          <div class="row" style="margin-top:12px"><label>Region <select name="region"><option value="us">US</option><option value="ous">Outside US</option><option value="jp">Japan</option></select></label></div>
+          <p class="help" style="margin-top:8px">Turn on Share in the Dexcom app.</p>
+        </div>
+        <div data-src="librelinkup" hidden>
+          <div class="row"><label>LibreLinkUp email <input name="email" type="email" autocomplete="username"></label></div>
+          <div class="row" style="margin-top:12px"><label>Password <input name="password" type="password" autocomplete="current-password"></label></div>
+          <p class="help" style="margin-top:8px">Use a LibreLinkUp follower account.</p>
+        </div>
+        <div data-src="nightscout" hidden>
+          <div class="row"><label>Site URL <input name="url" inputmode="url" placeholder="https://"></label></div>
+          <div class="row" style="margin-top:12px"><label>Read-only token <input name="token"></label></div>
+        </div>
+        <div data-src="demo" hidden>
+          <label>Scenario <select name="scenario">
+            <option value="live">Live</option><option value="in_range">In range</option><option value="high">High</option><option value="low">Low</option>
+            <option value="urgent_low">Urgent low</option><option value="urgent_high">Urgent high</option><option value="stale">No recent data</option>
+          </select></label>
+        </div>
+        <p class="error" role="alert"></p>
+        <button class="btn">Connect</button>
+      </form>
+    </section>
+
+    <section class="card locked" id="step-share">
+      <div class="head"><span class="num">3</span><h2>Visitors</h2><button class="edit" hidden>Edit</button></div>
+      <p class="summary" hidden></p>
+      <form novalidate hidden>
+        <label class="check"><input type="checkbox" name="showGraph" checked> Show my numbers and graph</label>
+        <label>Urgent contact number <input name="contactPhone" type="tel" autocomplete="tel" placeholder="Optional">
+          <span class="help">Visitors see it only during an urgent low or high.</span></label>
+        <details>
+          <summary>Ranges and daily goal</summary>
+          <div class="row"><label>Low <input name="low" inputmode="decimal"></label><label>High <input name="high" inputmode="decimal"></label></div>
+          <div class="row"><label>Urgent low <input name="urgentLow" inputmode="decimal"></label><label>Urgent high <input name="urgentHigh" inputmode="decimal"></label></div>
+          <div class="row"><label>Daily goal, % in range <input name="tirTarget" inputmode="numeric"></label></div>
+        </details>
+        <p class="error" role="alert"></p>
+        <button class="btn">Save</button>
+      </form>
+    </section>
+
+    <section class="card" id="done" hidden>
+      <div class="head"><h2>Share your valley</h2></div>
+      <form novalidate>
+        <div class="link"><input name="link" readonly aria-label="Share link"><button type="button" class="btn secondary" id="copy">Copy</button></div>
+        <p class="help">Anyone with the link can visit, explore and leave gifts.</p>
+        <a class="btn enter" href="/game/" id="enter" style="text-align:center;text-decoration:none">Enter your valley</a>
+      </form>
+    </section>
+
+    <p class="foot">Not a medical device. No alerts.<span id="signout-wrap" hidden> · <a href="#" id="signout">Sign out</a></span></p>
+  </main>
+  <script type="module" src="setup.js"></script>
+</body>
+</html>

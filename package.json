@@ -1,0 +1,18 @@
+{
+  "name": "sugar-valley",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A cozy village game powered by your CGM.",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/index.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch-path=server --watch-path=extension/shared server/index.js",
+    "fetch-sprites": "node scripts/fetch-sprites.mjs",
+    "test": "node --test \"server/**/*.test.js\" \"tests/**/*.test.js\"",
+    "assets": "node scripts/copy-assets.mjs",
+    "shot": "node scripts/screenshot.mjs"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}

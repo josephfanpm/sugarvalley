@@ -1,0 +1,37 @@
+// Loads art, builds generated textures, waits for the pixel font, loads the valley, then starts.
+import { makeSprites } from '../world/pixels.js';
+import { loadView, MODE } from '../net.js';
+
+const ART = '/art/';
+
+export class Boot extends Phaser.Scene {
+  constructor() { super('Boot'); }
+
+  preload() {
+    const bar = this.add.rectangle(this.scale.width / 2, this.scale.height / 2, 0, 6, 0xf2cf8c).setOrigin(0.5);
+    this.load.on('progress', (p) => bar.setSize(220 * p, 6));
+    const sheet = (key, file, w, h) => this.load.spritesheet(key, ART + file, { frameWidth: w, frameHeight: h });
+    sheet('player', 'player.png', 48, 48);
+    sheet('player-actions', 'player-actions.png', 48, 48);
+    sheet('chicken', 'chicken.png', 16, 16);
+    sheet('cow', 'cow.png', 32, 32);
+    sheet('water', 'water.png', 16, 16);
+    sheet('fences', 'fences.png', 16, 16);
+    sheet('soil-sheet', 'soil.png', 16, 16);
+    for (const k of ['grass', 'nature', 'paths', 'bridge', 'coop', 'chest', 'egg-nest', 'house-roof', 'house-walls', 'doors', 'plants', 'furniture', 'milk-grass'])
+      this.load.image(k, `${ART}${k}.png`);
+  }
+
+  async create() {
+    makeSprites(this);
+    try { await Promise.race([document.fonts.load('16px "Pixelify Sans"'), new Promise((r) => setTimeout(r, 1500))]); } catch { /* fall back */ }
+    try {
+      this.registry.set('view', await loadView());
+    } catch (e) {
+      const msg = MODE === 'viewer' ? 'This link was turned off or never existed.' : e.message;
+      this.add.text(this.scale.width / 2, this.scale.height / 2 + 24, msg, { fontFamily: '"Pixelify Sans"', fontSize: '20px', color: '#f3e5c2' }).setOrigin(0.5);
+      return;
+    }
+    this.scene.start('World');
+  }
+}

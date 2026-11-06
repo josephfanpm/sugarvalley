@@ -1,0 +1,16 @@
+{
+  "name": "Sugar Valley",
+  "short_name": "Sugar Valley",
+  "description": "A cozy village game powered by your CGM.",
+  "start_url": "/game/",
+  "scope": "/game/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#2b2d42",
+  "theme_color": "#2b2d42",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

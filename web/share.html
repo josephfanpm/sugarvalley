@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>{{TITLE}}</title>
+  <meta property="og:title" content="{{TITLE}}">
+  <meta property="og:description" content="{{DESC}}">
+  <meta name="description" content="{{DESC}}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;800&family=Pixelify+Sans:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared/ui.css">
+  <link rel="stylesheet" href="/web/share.css">
+</head>
+<body class="share">
+  <canvas id="scene" aria-label="Pixel art scene"></canvas>
+
+  <div class="hud">
+    <section class="glass reading" aria-live="polite">
+      <div class="who" id="who"></div>
+      <div class="game-row" id="game-row"></div>
+      <div class="value-row">
+        <span class="bg-value num" id="bg">--</span>
+        <span class="trend" id="trend"></span>
+        <span class="unit" id="unit"></span>
+      </div>
+      <div class="meta">
+        <span class="state" id="state"><span class="dot"></span><span id="state-label"></span></span>
+        <span id="ago"></span>
+        <button type="button" class="graph-toggle" id="graph-toggle" hidden aria-expanded="false">Graph</button>
+      </div>
+      <div class="activity" id="activity"></div>
+    </section>
+    <section class="glass graph" id="graph" hidden></section>
+  </div>
+
+  <div class="cheers" id="cheers" hidden>
+    <span class="cheers-label" id="cheers-label">Cheer them on</span>
+    <button type="button" data-cheer="heart" aria-label="Send a heart">❤️</button>
+    <button type="button" data-cheer="party" aria-label="Send a party popper">🎉</button>
+    <button type="button" data-cheer="muscle" aria-label="Send a flex">💪</button>
+    <button type="button" data-cheer="star" aria-label="Send a star">⭐</button>
+  </div>
+  <div class="toast" id="toast" hidden></div>
+
+  <div class="dialog" id="dialog">
+    <p id="caption">Loading…</p>
+    <div class="contact" id="contact" hidden>
+      <a id="text-btn" class="btn">Text</a>
+      <a id="call-btn" class="btn secondary">Call</a>
+    </div>
+  </div>
+
+  <footer class="fine">
+    For peeking only. Not a medical device and not an alert system. ·
+    <details><summary>Art credits</summary><div id="credits"></div></details>
+  </footer>
+  <script type="module" src="/web/share.js"></script>
+</body>
+</html>

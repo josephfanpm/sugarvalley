@@ -1,0 +1,1124 @@
+{
+  "frame": 64,
+  "anims": {},
+  "slots": {
+    "body": [
+      {
+        "id": "body",
+        "name": "Body Color",
+        "zPos": 10,
+        "materials": [
+          "body"
+        ],
+        "paths": {
+          "male": {
+            "dir": "body/bodies/male/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "body/bodies/female/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      }
+    ],
+    "head": [
+      {
+        "id": "head",
+        "name": "Human",
+        "zPos": 100,
+        "materials": [
+          "body",
+          "eye"
+        ],
+        "paths": {
+          "male": {
+            "dir": "head/heads/human/male/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "head/heads/human/female/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      }
+    ],
+    "face": [
+      {
+        "id": "neutral",
+        "name": "Neutral",
+        "zPos": 101,
+        "materials": [
+          "body",
+          "eye"
+        ],
+        "paths": {
+          "male": {
+            "dir": "head/faces/male/neutral/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "head/faces/female/neutral/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "happy",
+        "name": "Happy",
+        "zPos": 101,
+        "materials": [
+          "body"
+        ],
+        "paths": {
+          "male": {
+            "dir": "head/faces/male/happy/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "head/faces/female/happy/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "sad",
+        "name": "Sad",
+        "zPos": 101,
+        "materials": [
+          "body",
+          "eye"
+        ],
+        "paths": {
+          "male": {
+            "dir": "head/faces/male/sad/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "head/faces/female/sad/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "shock",
+        "name": "Shock",
+        "zPos": 101,
+        "materials": [
+          "body",
+          "eye"
+        ],
+        "paths": {
+          "male": {
+            "dir": "head/faces/male/shock/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "head/faces/female/shock/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "closed",
+        "name": "Closed Eyes",
+        "zPos": 101,
+        "materials": [
+          "body"
+        ],
+        "paths": {
+          "male": {
+            "dir": "head/faces/male/closed/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "head/faces/female/closed/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      }
+    ],
+    "hair": [
+      {
+        "id": "plain",
+        "name": "Plain",
+        "zPos": 120,
+        "materials": [
+          "hair"
+        ],
+        "paths": {
+          "male": {
+            "dir": "hair/plain/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hair/plain/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "messy",
+        "name": "Messy1",
+        "zPos": 120,
+        "materials": [
+          "hair"
+        ],
+        "paths": {
+          "male": {
+            "dir": "hair/messy1/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hair/messy1/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "pixie",
+        "name": "Pixie",
+        "zPos": 120,
+        "materials": [
+          "hair"
+        ],
+        "paths": {
+          "male": {
+            "dir": "hair/pixie/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hair/pixie/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "buzzcut",
+        "name": "Buzzcut",
+        "zPos": 120,
+        "materials": [
+          "hair"
+        ],
+        "paths": {
+          "male": {
+            "dir": "hair/buzzcut/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hair/buzzcut/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "spiked",
+        "name": "Spiked",
+        "zPos": 120,
+        "materials": [
+          "hair"
+        ],
+        "paths": {
+          "male": {
+            "dir": "hair/spiked/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hair/spiked/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "bob",
+        "name": "Bob",
+        "zPos": 120,
+        "materials": [
+          "hair"
+        ],
+        "paths": {
+          "male": {
+            "dir": "hair/bob/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hair/bob/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "curly",
+        "name": "Curly short",
+        "zPos": 120,
+        "materials": [
+          "hair"
+        ],
+        "paths": {
+          "male": {
+            "dir": "hair/curly_short/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hair/curly_short/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "afro",
+        "name": "Afro",
+        "zPos": 120,
+        "materials": [
+          "hair"
+        ],
+        "paths": {
+          "male": {
+            "dir": "hair/afro/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hair/afro/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "ponytail",
+        "name": "Ponytail",
+        "zPos": 120,
+        "materials": [
+          "hair"
+        ],
+        "paths": {
+          "male": {
+            "dir": "hair/ponytail/adult/fg/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hair/ponytail/adult/fg/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "long",
+        "name": "Long",
+        "zPos": 120,
+        "materials": [
+          "hair"
+        ],
+        "paths": {
+          "male": {
+            "dir": "hair/long/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hair/long/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      }
+    ],
+    "shirt": [
+      {
+        "id": "tshirt",
+        "name": "TShirt",
+        "zPos": 35,
+        "materials": [
+          "cloth"
+        ],
+        "paths": {
+          "male": {
+            "dir": "torso/clothes/shortsleeve/tshirt/male/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "torso/clothes/shortsleeve/tshirt/female/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "longsleeve",
+        "name": "Longsleeve",
+        "zPos": 35,
+        "materials": [
+          "cloth"
+        ],
+        "paths": {
+          "male": {
+            "dir": "torso/clothes/longsleeve/longsleeve/male/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "torso/clothes/longsleeve/longsleeve/female/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      }
+    ],
+    "legs": [
+      {
+        "id": "pants",
+        "name": "Pants",
+        "zPos": 20,
+        "materials": [
+          "cloth"
+        ],
+        "paths": {
+          "male": {
+            "dir": "legs/pants/male/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "legs/pants/thin/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "shorts",
+        "name": "Shorts",
+        "zPos": 20,
+        "materials": [
+          "cloth"
+        ],
+        "paths": {
+          "male": {
+            "dir": "legs/shorts/shorts/male/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "legs/shorts/shorts/thin/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "skirt",
+        "name": "Plain skirt",
+        "zPos": 20,
+        "materials": [
+          "cloth"
+        ],
+        "paths": {
+          "male": {
+            "dir": "legs/skirts/plain/male/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "legs/skirts/plain/thin/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "spellcast"
+            ]
+          }
+        }
+      }
+    ],
+    "shoes": [
+      {
+        "id": "basic",
+        "name": "Basic Shoes",
+        "zPos": 15,
+        "materials": [
+          "cloth"
+        ],
+        "paths": {
+          "male": {
+            "dir": "feet/shoes/basic/male/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "feet/shoes/basic/thin/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      }
+    ],
+    "hat": [
+      {
+        "id": "bandana",
+        "name": "Bandana",
+        "zPos": 120,
+        "materials": [
+          "cloth"
+        ],
+        "paths": {
+          "male": {
+            "dir": "hat/cloth/bandana/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hat/cloth/bandana/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "headband",
+        "name": "Thick Headband",
+        "zPos": 125,
+        "materials": [
+          "cloth"
+        ],
+        "paths": {
+          "male": {
+            "dir": "hat/headband/thick/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hat/headband/thick/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "bowler",
+        "name": "Formal Bowler Hat",
+        "zPos": 130,
+        "materials": [],
+        "paths": {
+          "male": {
+            "dir": "hat/formal/bowler/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hat/formal/bowler/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "tophat",
+        "name": "Formal Tophat",
+        "zPos": 130,
+        "materials": [],
+        "paths": {
+          "male": {
+            "dir": "hat/formal/tophat/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hat/formal/tophat/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "elf",
+        "name": "Elf Trim",
+        "zPos": 130,
+        "materials": [],
+        "paths": {
+          "male": {
+            "dir": "hat/holiday/elf/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hat/holiday/elf/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "santa",
+        "name": "Santa Trim",
+        "zPos": 131,
+        "materials": [],
+        "paths": {
+          "male": {
+            "dir": "hat/holiday/santa/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hat/holiday/santa/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "wizard",
+        "name": "Wizard Hat Base",
+        "zPos": 130,
+        "materials": [],
+        "paths": {
+          "male": {
+            "dir": "hat/magic/wizard/base/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hat/magic/wizard/base/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "tiara",
+        "name": "Tiara",
+        "zPos": 130,
+        "materials": [],
+        "paths": {
+          "male": {
+            "dir": "hat/formal/tiara/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hat/formal/tiara/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "crown",
+        "name": "Crown",
+        "zPos": 130,
+        "materials": [],
+        "paths": {
+          "male": {
+            "dir": "hat/formal/crown/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "hat/formal/crown/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      }
+    ],
+    "glasses": [
+      {
+        "id": "round",
+        "name": "Round Glasses",
+        "zPos": 115,
+        "materials": [],
+        "paths": {
+          "male": {
+            "dir": "facial/glasses/round/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "facial/glasses/round/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "nerd",
+        "name": "Nerd Glasses",
+        "zPos": 115,
+        "materials": [],
+        "paths": {
+          "male": {
+            "dir": "facial/glasses/nerd/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "facial/glasses/nerd/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      },
+      {
+        "id": "sunglasses",
+        "name": "Sunglasses",
+        "zPos": 115,
+        "materials": [],
+        "paths": {
+          "male": {
+            "dir": "facial/glasses/sunglasses/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          },
+          "female": {
+            "dir": "facial/glasses/sunglasses/adult/",
+            "anims": [
+              "idle",
+              "sit",
+              "walk",
+              "run",
+              "jump",
+              "spellcast"
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
