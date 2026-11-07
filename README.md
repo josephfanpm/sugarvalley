@@ -1,153 +1,170 @@
 # Sugar Valley
 
-A cozy village-restoration game for people with type 1 diabetes. Every CGM reading in range brings
-sunlight back to a faded valley. Spend it to restore the village, and watch each day's glucose
-curve grow a one-of-a-kind plant in your Garden of Days.
+A cozy village game for people with type 1 diabetes: every CGM reading in range brings sunlight back
+to a faded valley, and friends and family can visit to cheer you on.
 
-It is not a medical device and does not send alerts. See [design/gdd/safety.md](design/gdd/safety.md).
+**[Play the live prototype](https://josephfanpm.github.io/sugarvalley/)** (real Dexcom readings, no
+sign-in) · [Product requirements](docs/PRD.md) · [Build and run](docs/DEVELOPMENT.md)
 
-**Status:** one area (the Forest hamlet), playable with real CGM data. Owners set up an account and
-play; visitors play in the owner's valley from the share link. Screenshots: `production/qa/evidence/`.
+Not a medical device. No alerts, no dosing advice. See the [safety rules](design/gdd/safety.md).
 
-## Run it
+| Garden of Days: one plant per day, grown from that day's glucose curve | A visitor in a friend's valley during a low |
+|---|---|
+| ![Garden of Days](production/qa/evidence/quality-slice/05-garden-of-days.png) | ![Visitor view](production/qa/evidence/town/04-visitor-sam.png) |
+
+<sub>Screenshots from QA runs with demo data ([production/qa/evidence/](production/qa/evidence/)). Some UI has changed since.</sub>
+
+## Problem
+
+Managing type 1 diabetes is constant, invisible work. A good day looks like nothing happened.
+The tools that hold the data are clinical: numbers, graphs, alarms. Nothing there makes the effort
+feel rewarding, and the people who care about you see either a raw number or nothing.
+
+I live with type 1 diabetes, so I'm building the game I want to open each day.
+
+<!-- TODO(Joseph): add how existing apps or games fall short, if you want that public. The repo
+doesn't record a comparison. -->
+
+## Target users
+
+| User | Need |
+|---|---|
+| **Owner:** a person with T1D who wears a CGM, any age | A reason to look forward to the data; credit for good stretches without blame for bad ones |
+| **Visitor:** a friend, parent or partner with the share link | A warm way to check in and help, without an account or a wall of numbers |
+
+Kids play with parents; teens and adults play on their own. Text is short and every state also has
+an icon ([game concept](design/gdd/game-concept.md)).
+
+## Solution
+
+A top-down pixel-art life sim, phone first, installable as a web app. It runs on real CGM data from
+Dexcom, Libre or Nightscout. About 2–5 minutes of active play a day; the world advances from readings.
+
+- **Sunlight:** each in-range reading earns 1. Spend it to restore 8 faded places (footbridge, coop,
+  orchard…), each unlocking chores, crops or cooking.
+- **Garden of Days:** each day's curve grows a unique plant. Rough days grow a hardy shrub, never a
+  dead one.
+- **Habit loops:** a weekly goal built from your weakest time of day, quick-comeback bonuses,
+  steady-streak butterflies, a morning recap, and a tagging journal that shows what lines up with
+  better days ([design](design/gdd/quests-journal.md)).
+- **Living character:** stop moving and your character acts out your blood sugar: chores in range,
+  a snack in town when low, the gym when high (33 actions).
+- **Visitors:** a share link opens your valley. Visitors see your character, leave gifts, and get a
+  "check on them" banner with Text/Call during urgent states.
+
+## My role
+
+Product owner and designer: concept, pillars, safety rules, reward economy, visitor privacy model and
+scope ([game concept](design/gdd/game-concept.md), owner: Joseph). Built with Claude Code as the
+engineering partner, using the Claude Code Game Studios framework at minimal rigor; commits are
+co-authored with Claude.
+
+<!-- TODO(Joseph): say in one line which parts you did hands-on (e.g. wrote the specs, tuned the
+balance, playtested, drew any art) so readers don't have to infer it. -->
+
+## Key decisions and trade-offs
+
+| Decision | Options considered | Chosen | Given up | Why |
+|---|---|---|---|---|
+| **What earns rewards** | Reward every reading; reward logging; reward in-range only | +1 per in-range reading, 0 for lows. Comeback bonus capped so an excursion never beats staying in range | Simpler rewards; harder days earn less | Rewarding a low, even indirectly, could reward risk ([safety #4](design/gdd/safety.md), [sunlight.md](design/gdd/sunlight.md), [balance.js](src/data/balance.js)) |
+| **What happens on bad days** | Streaks that reset, crops that wither (common retention levers); nothing decays | Nothing decays. Streaks pause. Rough days grow a shrub and get neutral copy ("a windy day") | Loss aversion as a motivator | "Motivation backfire" is the top design risk: pressure on hard days ([concept risks](design/gdd/game-concept.md#risks), [safety #6–9](design/gdd/safety.md)) |
+| **Medical scope** | CGM companion with alerts; pure game | Not a medical device. Urgent states show a banner that can't be dismissed; data over 15 min old never reads as "fine" | Alerts and advice, the most obvious "useful" features | Keeps it a game with one hard rule: safety wins. The game keeps running under the banner (the character sits and treats) so it never feels like punishment ([safety #1–3](design/gdd/safety.md)) |
+| **Sharing with family** | Visitor accounts; full data share; a link | No-account share link. Numbers on by default, owner can hide them; hidden mode sends only rounded daily values. Urgent contact number sent only during an urgent state. Visitors gift but can't spend | Visitor identity, richer social features | Easy for any age to join; the owner controls exposure ([visitors.md](design/gdd/visitors.md), [safety #11–13](design/gdd/safety.md)) |
+| **Art and audio** | Original art; a premium pack; free packs | Free Sprout Lands Basic pack plus CC0 music and sounds; new art drawn only in its 97-color palette | Commercial release (Basic is non-commercial) and art breadth | Prototype speed at no cost; buy the Premium license if it ships commercially ([concept risks](design/gdd/game-concept.md#risks), [credits](#credits-and-licenses)) |
+| **How to demo it** | Host the full server; static demo data; static site with real data | GitHub Pages build fed by a scheduled Action that publishes one owner's readings every 10 min | Multi-user, sign-in, 5-min freshness | A live link with real data and no server to run. The CGM login stays in repo secrets; only readings are published (commit `737c0a5`, [readings.yml](.github/workflows/readings.yml)) |
+
+The project also pivoted from **Sugar Peek**, a Chrome extension that shared a live pixel-art peek at a
+CGM reading ([extension/manifest.json](extension/manifest.json)), to this phone-first game (commit
+`9e86812`).
+<!-- TODO(Joseph): add the reason for the pivot from the Chrome extension to a game. Git history starts
+at the overhaul, so the reasoning isn't recorded. -->
+
+## Success metrics
+
+**Measured so far**
+
+- No user metrics yet. The game has no analytics, and the repo records no playtest results.
+- 47 automated tests pass (`npm test`): CGM connectors, auth, sunlight and reward rules, safety rules
+  (lows earn nothing, stale data), captions and insights.
+
+<!-- TODO(Joseph): add any real playtest or usage results here (who played, for how long, what they
+said). Don't add numbers that weren't measured. -->
+
+**Design targets (from the specs, not measured)**
+
+- 2–5 minutes of active play a day.
+- All 8 restorations in about 9–12 days for someone around 70% time in range ([farm.md](design/gdd/farm.md)).
+
+**KPIs I would track (proposed, not instrumented)**
+
+| Goal | KPI | Note |
+|---|---|---|
+| Activation | % of new owners who connect a CGM and restore their first place on day 1 | First restore costs 150; a typical day earns ~200 |
+| Habit | Days played per week per owner; D7 and D30 retention | The target is a short daily visit, not long sessions |
+| Connection | % of owners with at least one visitor in week 1; gifts per owner per week | Tests the collaborative premise |
+| Safety guardrail | Time below range does not rise after people start playing | Must hold before any other metric counts |
+| Tone | Share of owners who say rough days feel neutral, not shaming (short survey) | Checks the "care, not score" pillar |
+| Health signal (exploratory) | Change in time in range vs. each owner's own baseline | Self-selected and confounded; a signal, never a claim |
+
+## Prioritization and roadmap
+
+Sources: [systems index](design/gdd/systems-index.md), [safety rules](design/gdd/safety.md) and commit history.
+
+| | Item | Why |
+|---|---|---|
+| **Now** | Forest hamlet and town playable with real data; GitHub Pages prototype live | Done: the systems index marks the core MVP systems built |
+| **Next** | Sick-day pause (one tap pauses quests for up to 3 days) | Safety rule #8. Today a "Sick" journal tag lowers the weekly goal; there is no one-tap pause in code yet |
+| **Next** | Playtests with owners and visitors, plus basic analytics for the KPIs above | No evidence yet that the loop works beyond the builder |
+| **Next** | Hosted multi-user server (Docker and Fly.io ready, see [DEPLOY.md](DEPLOY.md)) with Google / Apple sign-in | Sign-in is built but needs client IDs and a domain |
+| **Next** | Migrate rewards from Sugar Peek; remove legacy `extension/` and `web/` | Listed as MVP, not started |
+| **Later** | Festivals (Lantern Night, Harvest Fair) | Post-MVP; a monthly reason to return |
+| **Later** | Districts 2–5 (Beach cove, Town square, Snow village, Night market), outfits and decor | Post-MVP; needs more art, and the Premium art license for a commercial release |
+
+Known risk: the Dexcom Share and LibreLinkUp connectors use unofficial endpoints that can change
+without notice ([DEPLOY.md](DEPLOY.md)).
+
+## Technical overview
+
+```
+CGM (Dexcom Share · LibreLinkUp · Nightscout · demo)
+  → server/poller.js (every 5 min) → SQLite (node:sqlite), CGM credentials AES-256-GCM encrypted
+  → server/valley.js: sunlight computed from stored readings, never trusted from the client
+  → JSON API → Phaser 3 client (src/, PWA, no build step) for the owner or a visitor's share link
+```
+
+| Area | Choice |
+|---|---|
+| Client | Phaser 3.90 vendored (no CDN at runtime), plain ES modules, no build step, installable PWA with a service worker |
+| Server | Node 22, **zero npm dependencies**: built-in `node:sqlite`, `node:test`, `node:crypto` |
+| Shared rules | [valley-rules.js](src/data/valley-rules.js) and [balance.js](src/data/balance.js) run on the server (authoritative) and in the offline demo, so both follow one economy |
+| Auth | Browser-held owner key, or Google / Apple ID tokens verified against provider keys ([server/auth.js](server/auth.js)); rate-limited visitor gifts |
+| World | Maps built in code with autotiling, day/night lighting from the local clock, pathfinding and collisions ([src/world/](src/world/)) |
+| Tests | 47 tests with `node --test` in [server/](server/) and [tests/unit/](tests/unit/) |
+| CI/CD | GitHub Actions: [pages.yml](.github/workflows/pages.yml) deploys the static prototype; [readings.yml](.github/workflows/readings.yml) publishes readings |
+| Deploy | Dockerfile and [fly.toml.example](fly.toml.example), see [DEPLOY.md](DEPLOY.md) |
+| QA | Headless-Chrome screenshot script ([scripts/screenshot.mjs](scripts/screenshot.mjs)) with evidence in [production/qa/evidence/](production/qa/evidence/) |
+
+Design docs: [game concept](design/gdd/game-concept.md), [safety](design/gdd/safety.md),
+[sunlight economy](design/gdd/sunlight.md), [Garden of Days](design/gdd/garden-of-days.md),
+[visitors](design/gdd/visitors.md), [farm](design/gdd/farm.md), [town](design/gdd/town.md),
+[art bible](design/art-bible.md).
+
+## Getting started
 
 Requires Node 22.13 or newer. No npm dependencies.
 
 ```bash
-npm run assets   # optional: refresh assets/art from the raw Sprout Lands pack (already included)
 npm start        # http://localhost:8787 → opens the game at /game/
 npm test         # CGM connector, rewards and safety-rule tests
 ```
 
-`PORT=8790 npm start` runs on another port.
+Open `/game/setup.html` and pick **Demo** as the CGM to try it without a sensor, or open
+`/game/?demo` to play offline. Controls, test URLs, sign-in setup, CGM sources and project layout are
+in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Hosting: [DEPLOY.md](DEPLOY.md).
 
-1. Open `/game/setup.html`: name, CGM (pick **Demo** to try it without a sensor), visitors.
-2. **Enter your valley.** Your key stays in this browser.
-3. Send the share link. Visitors open it and play in your valley. See [design/gdd/visitors.md](design/gdd/visitors.md).
-
-`/game/?demo` plays offline with demo data and a browser save (add `&viewer` to play as a visitor).
-
-### Sign in with Google / Apple (optional)
-
-Without these, setup uses a key stored in the browser. With them, people can sign in on any device.
-
-- **Google** (free, works on localhost): Google Cloud Console → APIs & Services → Credentials → Create
-  OAuth client ID → Web application. Add `http://localhost:8787` (and your real domain) to
-  Authorized JavaScript origins. Then `GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com npm start`.
-- **Apple** (needs the $99/yr Apple Developer Program and an HTTPS domain, so not on localhost):
-  create a Services ID with Sign in with Apple, register your domain and return URL, then set
-  `APPLE_CLIENT_ID=<services id>` and `APPLE_REDIRECT_URI=https://your.domain/game/setup.html`.
-
-The server verifies the provider's ID token against its public keys (`server/auth.js`). Signing in
-while already set up links the provider to your existing valley.
-
-### Controls
-
-| Action | Keyboard | Touch / mouse |
-|---|---|---|
-| Walk | WASD or arrow keys | Tap where to go |
-| Interact | E, Space or Enter | Tap the prompt |
-| Mute | M | Music note button |
-| Glucose graph | G (Esc closes) | Tap the reading |
-| How it works | H | ? button |
-| Inventory (basket, cookbook, ribbons) | I | Bag button |
-| Settings (owner) | — | Gear button |
-
-### Test URLs
-
-Add these to `/game/`:
-
-| Parameter | Effect |
-|---|---|
-| `?demo` | Offline demo data (the knobs below except `t`, `x`, `y`, `zoom` need it) |
-| `&viewer` | Play the demo as a visitor |
-| `&hidden` | Visitor with numbers hidden |
-| `&restored=bridge,coop` | Start with these restored |
-| `&inv=egg:3,milk:1` | Start with this in the basket |
-| `&nointro`, `&norecap` | Skip the intro card / morning recap |
-| `&cooked=pancakes,bread`, `&ribbons=3` | Preview the cottage with dishes and ribbons |
-| `&fresh` | Ignore the demo save |
-| `&sun=400` | Start with this much sunlight (with `fresh`) |
-| `&t=20.5` | Freeze the clock at this hour (lighting) |
-| `&bg=48` | Force the current reading (48 shows the urgent-low screen) |
-| `&x=28&y=15` | Start at this tile |
-| `&zoom=3` | Force the pixel zoom |
-
-`npm run shot -- <url> <out.png> [width] [height] [waitMs] [keys]` takes a headless-Chrome
-screenshot and prints console errors. Keys look like `e:100,d:2000` (key:held ms). Set `SHOT_KEY`
-to an owner key to sign in first.
-
-## How it plays
-
-- **Sunlight:** each in-range reading adds 1 to the Sun Well. Getting back in range quickly adds a
-  small bonus. Lows never earn anything.
-- **Restore:** walk to a faded thing (footbridge, lantern path) and spend sunlight to bring it back.
-  The footbridge opens the east meadow.
-- **Garden of Days:** one plant per day. Stem follows the day's curve, bloom size follows time in
-  range, color follows the average. Rough days grow a hardy shrub; days without enough data leave a
-  stone. Walk up to a plant to see its day.
-- **Time of day:** lighting follows your clock. Windows and lanterns glow at night; fireflies come out.
-- **Urgent states:** a banner that can't be dismissed; the game keeps running while the character treats.
-- **Farm:** restore the coop, veggie patch, campfire kitchen, pasture, orchard and dock. Daily
-  chores (eggs, milk, harvest, apples) fill your basket; cook recipes at the campfire. Crops ripen with
-  in-range time. See [design/gdd/farm.md](design/gdd/farm.md).
-- **Maple's weekly goal:** built from your weakest time of day over the last two weeks.
-- **Garden Journal:** tag what happened on a day; insights show which tags line up with better days.
-- **Comebacks, steady streaks, morning recap:** see [design/gdd/quests-journal.md](design/gdd/quests-journal.md).
-- **Buildings:** every building can be entered. Order and pay at The Sunny Cup and the bakery, get
-  seated and served at Valley Kitchen, check in and use the treadmill, squat rack, bench press, bike
-  and dumbbells at the gym. Your character does this on its own when low or high.
-- **Cottage:** walk in through the door. Ribbons from weekly goals hang on the wall and every recipe
-  you've cooked sits on the table. Visitors can come in too.
-- **Town:** down Main Street: coffee shop, bakery, restaurant, market, fountain plaza, gym, running
-  track and dog park, with townsfolk to chat with and a dog that follows you.
-- **Living character (33 automatic actions):** stop moving and your character takes over. In range it
-  collects sunlight, does chores, cooks and waters on its own, then plays fetch, fishes, chats… Low, it
-  goes into town to eat until you're back in range. High, it hits the gym, runs the track or walks the
-  dog. See [design/gdd/town.md](design/gdd/town.md).
-- **Knowing what to do:** a how-it-works card on first visit (? to reopen) and an arrow over the next
-  thing to do (pinned to the screen edge when it's off screen).
-- **One-liners:** a caption like "Sam's blood sugar is 112 mg/dL. Flat line, full heart." changes with
-  each reading (`src/data/captions.js`). Plain wording for urgent states, no value when stale or hidden.
-
-## Project layout
-
-```
-src/                 the game (Phaser 3.90, ES modules, no build step) — served at /game/
-  setup.html/.js     account setup
-  net.js, demo.js    data for owner / visitor / offline demo
-  scenes/            Boot, World (the hamlet), Hud
-  ui/graph.js        pixel-art glucose graph
-  world/             terrain + autotiling, cottage builder, Garden of Days plants, pixel helpers
-  data/              palette, balance knobs, CGM math (scoring, sunlight, demo data)
-  audio.js, music.js sound effects (Kenney CC0 + synthesized), ambience, CC0 music (assets/audio/CREDITS.md)
-  scenes/Interior.js the cottage interior
-assets/art/          Sprout Lands sheets used by the game (from `npm run assets`)
-server/              Node server: CGM connectors (Nightscout, Dexcom Share, LibreLinkUp, demo), poller, API
-  valley.js          valley state: sunlight (computed from readings), restore, water, visitor gifts
-design/              concept, safety rules, art bible, system docs (Claude Code Game Studios, minimal rigor)
-production/qa/       screenshot evidence
-tests/               unit tests for the game's CGM math
-extension/, web/     legacy Sugar Peek prototype (no longer linked; safe to remove)
-```
-
-This repo uses [Claude Code Game Studios](https://github.com/donchitos/claude-code-game-studios) at
-`minimal` rigor. Start a Claude Code session in this folder to use its agents and slash commands.
-
-## CGM sources
-
-| Source | Endpoint | Notes |
-|---|---|---|
-| Nightscout | `/api/v1/entries/sgv.json` | Use a read-only token |
-| Dexcom | Dexcom Share (unofficial) | Share must be on in the Dexcom app |
-| Libre | LibreLinkUp follower API (unofficial) | Log in as a follower account |
-| Demo | Simulated | Used by the quality slice |
-
-Credentials are encrypted at rest (AES-256-GCM, key in `data/secret.key` or `SUGARPEEK_KEY`).
-
-## Deploying
-
-See [DEPLOY.md](DEPLOY.md) (Docker, Fly.io).
+`.claude/`, the `CLAUDE.md` files, `project.yaml` and most of `docs/` come from the
+[Claude Code Game Studios](https://github.com/donchitos/claude-code-game-studios) framework. They are
+tooling, not product docs.
 
 ## Credits and licenses
 
@@ -156,7 +173,10 @@ See [DEPLOY.md](DEPLOY.md) (Docker, Fly.io).
   free Basic pack is licensed for **non-commercial use only**, with credit. A commercial release
   needs the Premium license. The raw pack is gitignored and must not be redistributed.
 - **Audio:** CC0 music by MintoDog and sounds by Kenney, see [assets/audio/CREDITS.md](assets/audio/CREDITS.md).
-- **Font:** Pixelify Sans (SIL Open Font License, `src/fonts/OFL.txt`).
+- **Font:** DotGothic16 (SIL Open Font License, [src/fonts/OFL-DotGothic16.txt](src/fonts/OFL-DotGothic16.txt)).
 - **Engine:** [Phaser](https://phaser.io) (MIT).
-- New pixel art (Sun Well, lanterns, icons, UI panel, plants) is original to this project and uses
-  only the Sprout Lands palette.
+- New pixel art (Sun Well, lanterns, icons, UI panel, plants, town and building interiors) is original
+  to this project and uses only the Sprout Lands palette.
+
+<!-- TODO(Joseph): the repo has no license file for the project's own code. Add one if you want others
+to reuse it. -->
