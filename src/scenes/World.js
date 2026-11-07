@@ -1158,7 +1158,9 @@ export class World extends Phaser.Scene {
   // ---------- lighting ----------
   buildLighting() {
     this.dark = this.add.renderTexture(0, 0, 10, 10).setOrigin(0).setDepth(100000).setBlendMode(Phaser.BlendModes.MULTIPLY);
-    this.lightStamp = this.make.image({ key: 'light', add: false });
+    // Lights brighten the night layer additively (toward white = no darkening). Erasing holes in it
+    // instead wiped the whole layer once several lights were on screen.
+    this.lightStamp = this.make.image({ key: 'light', add: false }).setBlendMode(Phaser.BlendModes.ADD);
     this.glows = this.add.group();
     this.glowPool = [];
   }
@@ -1174,21 +1176,25 @@ export class World extends Phaser.Scene {
     const color = skyAt(this.hourNow());
     const lum = (((color >> 16) & 255) * 0.3 + ((color >> 8) & 255) * 0.59 + (color & 255) * 0.11) / 255;
     this.night = Math.max(0, Math.min(1, (1 - lum) * 1.7));
-    const w = Math.ceil(v.width) + 4, h = Math.ceil(v.height) + 4;
+    // Margin so every light stamp lands fully inside the layer (stamps hanging off its edge
+    // washed out the whole layer in WebGL).
+    const M = 100;
+    const w = Math.ceil(v.width) + 2 * M, h = Math.ceil(v.height) + 2 * M;
     if (this.dark.width !== w || this.dark.height !== h) this.dark.resize(w, h);
-    this.dark.setPosition(Math.floor(v.x) - 2, Math.floor(v.y) - 2);
+    this.dark.setPosition(Math.floor(v.x) - M, Math.floor(v.y) - M);
     this.dark.setVisible(this.night > 0.01 || color !== 0xffffff);
     this.dark.clear();
     this.dark.fill(color, 1);
+    this.dark.beginDraw(); // one batch for all lights
     let gi = 0;
     for (const l of this.lights) {
       if (!l.on()) continue;
       const lx = l.follow ? l.follow.x : l.x, ly = l.follow ? l.follow.y - 8 : l.y;
-      if (lx < v.x - 60 || lx > v.right + 60 || ly < v.y - 60 || ly > v.bottom + 60) continue;
+      if (lx < v.x - l.r || lx > v.right + l.r || ly < v.y - l.r || ly > v.bottom + l.r) continue;
       const flick = l.warm ? 1 + Math.sin(this.time.now / 140 + lx) * 0.03 : 1;
       const r = l.r * flick * (l.soft ? 0.8 : 1);
       this.lightStamp.setScale((r * 2) / 128).setAlpha(Math.min(1, this.night * (l.soft ? 0.5 : 1.1)));
-      this.dark.erase(this.lightStamp, lx - this.dark.x, ly - this.dark.y);
+      this.dark.batchDraw(this.lightStamp, lx - this.dark.x, ly - this.dark.y);
       if (l.warm && this.night > 0.15) {
         let g = this.glowPool[gi];
         if (!g) { g = this.add.image(0, 0, 'light').setBlendMode(Phaser.BlendModes.ADD).setDepth(100001).setTint(hex(PAL.gold)); this.glowPool[gi] = g; }
@@ -1196,6 +1202,7 @@ export class World extends Phaser.Scene {
         gi++;
       }
     }
+    this.dark.endDraw();
     for (let i = gi; i < this.glowPool.length; i++) this.glowPool[i].setVisible(false);
     this.fireflies.setAlpha(Math.max(0, (this.night - 0.35) * 1.6));
     for (const g of this.windowGlows) g.setAlpha(Math.min(1, this.night * 1.4) * (0.92 + Math.sin(this.time.now / 300) * 0.04));
