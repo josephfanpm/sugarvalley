@@ -8,6 +8,8 @@ sign-in) · [Product requirements](docs/PRD.md) · [Build and run](docs/DEVELOPM
 
 Not a medical device. No alerts, no dosing advice. See the [safety rules](design/gdd/safety.md).
 
+No sensor needed: on the live prototype, open /game/?demo to play offline with demo data.
+
 | Garden of Days: one plant per day, grown from that day's glucose curve | A visitor in a friend's valley during a low |
 |---|---|
 | ![Garden of Days](production/qa/evidence/quality-slice/05-garden-of-days.png) | ![Visitor view](production/qa/evidence/town/04-visitor-sam.png) |
@@ -165,6 +167,18 @@ in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Hosting: [DEPLOY.md](DEPLOY.md).
 `.claude/`, the `CLAUDE.md` files, `project.yaml` and most of `docs/` come from the
 [Claude Code Game Studios](https://github.com/donchitos/claude-code-game-studios) framework. They are
 tooling, not product docs.
+
+## Limitations
+
+- No user metrics yet. The game has no analytics and the repo records no playtest results, so nothing here proves the loop works beyond the builder. The 2 to 5 minutes of active play a day, and all 8 restorations in about 9 to 12 days for someone around 70% time in range, are design targets from the specs, not measured results.
+- The MVP (forest hamlet and town) is built, but it has not been playtested with outside users. The live prototype runs on one owner's real Dexcom readings, with no sign-in.
+- Multi-user hosting is not live. Sign-in is built but needs client IDs and a domain, and the Docker and Fly.io setup is ready in the repo but not deployed.
+- The sick-day pause is specified in the safety rules but not built in code. Today a Sick journal tag lowers the weekly goal, and there is no one-tap pause yet.
+- Districts 2 to 5, festivals, outfits and decor are post-MVP and not built. The Sugar Peek rewards migration, and removing the legacy extension and web folders, are listed as MVP work and not started.
+- The Dexcom Share and LibreLinkUp connectors use unofficial endpoints that can change without notice.
+- Screenshots on this page are from QA runs with demo data, and some UI has changed since.
+- Art uses the free Sprout Lands Basic pack, licensed for non-commercial use only. A commercial release needs the Premium license.
+- What I would do next: playtests with owners and visitors, plus basic analytics for the KPIs in this README, then the hosted multi-user server, then the sick-day pause.
 
 ## Credits and licenses
 
